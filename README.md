@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current T001 scope is intentionally small: a Python 3.12 FastAPI skeleton with one liveness endpoint.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI skeleton, one liveness endpoint, and a Docker Compose local stack for the API, PostgreSQL, and Redis.
 
 ## Public-safety constraints
 
@@ -12,13 +12,14 @@ This repository uses only public-safe sample code and documentation. Do not add 
 
 - `GET /healthz` returns `{"status": "ok"}`.
 
-No database, Redis, Docker, carbon calculation logic, authentication, metrics, or external API clients are included yet.
+PostgreSQL and Redis are available in the local Docker stack only. The application does not yet contain database models, migrations, Redis application code, carbon calculation logic, authentication, metrics, or external API clients.
 
 ## Requirements
 
 - Python 3.12
 - `uv` for dependency management and command execution
 - `make`
+- Docker with Docker Compose v2 for the local container stack
 
 ## Setup
 
@@ -26,7 +27,7 @@ No database, Redis, Docker, carbon calculation logic, authentication, metrics, o
 make install
 ```
 
-## Run locally
+## Run locally without Docker
 
 ```sh
 make run
@@ -36,6 +37,45 @@ Then check the liveness endpoint:
 
 ```sh
 curl http://127.0.0.1:8000/healthz
+```
+
+## Run locally with Docker
+
+Optional: copy the safe local defaults before running Docker Compose.
+
+```sh
+cp example.env .env
+```
+
+Validate and build the local stack:
+
+```sh
+docker compose config
+docker compose build
+```
+
+Start the API, PostgreSQL, and Redis:
+
+```sh
+docker compose up
+```
+
+In another terminal, test the API container through the host port:
+
+```sh
+curl http://localhost:8000/healthz
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+Stop and remove the local containers, networks, and volumes:
+
+```sh
+docker compose down --volumes --remove-orphans
 ```
 
 ## Development commands
@@ -51,6 +91,8 @@ The full project gate is:
 ```sh
 scripts/quality-gate.sh
 ```
+
+When `docker-compose.yml` exists, the quality gate also validates the Compose file with `docker compose config`.
 
 ## Documentation
 

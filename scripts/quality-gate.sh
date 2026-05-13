@@ -18,4 +18,8 @@ else
   python -m pytest --cov=src --cov-report=term-missing
 fi
 
+if [[ -f "docker-compose.yml" ]]; then
+  docker compose config >/dev/null
+fi
+
 echo "quality gate passed"

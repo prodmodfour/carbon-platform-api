@@ -45,7 +45,7 @@ Acceptance criteria:
 
 ## T002 — Docker local environment
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add Docker support for local development without adding application database or Redis logic yet.
@@ -84,7 +84,9 @@ Acceptance criteria:
 - `docker compose build` passes.
 - `docker compose up` starts api, postgres, and redis.
 - `curl http://localhost:8000/healthz` returns `{"status":"ok"}`.
-- README has exact local Docker run, test, and teardown commands.---
+- README has exact local Docker run, test, and teardown commands.
+
+---
 
 ## Future tickets
 

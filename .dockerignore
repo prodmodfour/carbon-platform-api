@@ -1,0 +1,29 @@
+# Git and local tooling
+.git/
+.pi/
+.vscode/
+.idea/
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local environment files
+.venv/
+venv/
+.env
+.env.*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local logs and OS files
+*.log
+.DS_Store
