@@ -42,13 +42,33 @@ Acceptance criteria:
 - README explains project purpose and public-safety constraints.
 - No database, Redis, Docker, carbon logic, external API clients, or extra endpoints yet.
 
+
+
+## T002 — Docker local environment
+
+Status: TODO
+
+Goal:
+Add Docker support for local development.
+
+Requirements:
+- Dockerfile.
+- docker-compose.yml with api, postgres, redis.
+- API exposed on port 8000.
+- Environment variables loaded from .env or compose config.
+- README updated with Docker commands.
+
+Acceptance criteria:
+- docker compose up starts the stack.
+- /healthz works in the container.
+- README has exact run commands.
+
 ---
 
 ## Future tickets
 
 The following are intentionally LOCKED for Day 1. Do not implement them yet.
 
-- T002 Docker local environment
 - T003 Config and structured logging
 - T004 Database models and migrations
 - T005 Workspace API
