@@ -1,4 +1,3 @@
-```md
 # carbon-platform-api build tickets
 
 AUTOMATION_STATUS: IN_PROGRESS
