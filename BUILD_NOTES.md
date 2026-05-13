@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-Project has not started yet.
+T001 is complete. The repository now has a Python 3.12 FastAPI project skeleton using a `src/carbon_platform_api` layout, one `GET /healthz` endpoint, tests, lint/typecheck tooling, Make targets, and initial public-safe documentation.
 
 ## Last completed ticket
 
-None.
+T001 — Project skeleton.
 
 ## Current blockers
 
@@ -16,10 +16,18 @@ None.
 
 ## Quality gate history
 
-None yet.
+2026-05-13:
+- `make test` — passed.
+- `make lint` — passed after formatting `src/carbon_platform_api/main.py` with Ruff.
+- `make typecheck` — passed.
+- `scripts/quality-gate.sh` — passed with Ruff, mypy, pytest, and coverage.
+
+## Limitations
+
+- Only `GET /healthz` is implemented.
+- FastAPI docs/OpenAPI routes are disabled so no extra endpoints are exposed in T001.
+- No database, Redis, Docker, carbon calculations, external API clients, authentication, metrics, or additional API endpoints are included.
 
 ## Notes for next cycle
 
-Start with T001 only.
-
-Do not implement database, Redis, Docker, carbon calculations, external API clients, auth, metrics, or extra endpoints during T001.
+Recommended next ticket: T002 Docker local environment, when future tickets are unlocked.

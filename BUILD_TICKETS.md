@@ -15,7 +15,7 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## T001 — Project skeleton
 
-Status: TODO
+Status: DONE
 
 Goal:
 Create the initial Python/FastAPI project skeleton.
