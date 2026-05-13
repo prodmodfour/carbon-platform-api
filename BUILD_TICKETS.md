@@ -48,21 +48,43 @@ Acceptance criteria:
 Status: TODO
 
 Goal:
-Add Docker support for local development.
+Add Docker support for local development without adding application database or Redis logic yet.
 
 Requirements:
-- Dockerfile.
-- docker-compose.yml with api, postgres, redis.
-- API exposed on port 8000.
-- Environment variables loaded from .env or compose config.
-- README updated with Docker commands.
+- Add Dockerfile for the FastAPI API.
+- Add .dockerignore.
+- Add docker-compose.yml with services:
+  - api
+  - postgres
+  - redis
+- API exposed on host port 8000.
+- Postgres exposed on host port 5432.
+- Redis exposed on host port 6379.
+- Use environment variables in docker-compose.yml.
+- Use safe local defaults only.
+- Do not commit real secrets.
+- API container must run as a non-root user where practical.
+- Add container health check for the API using /healthz.
+- Add Postgres and Redis health checks where practical.
+- Update README with exact Docker commands.
+- Update scripts/quality-gate.sh so it runs `docker compose config` when docker-compose.yml exists.
+
+Scope limits:
+- Do not add SQLAlchemy.
+- Do not add Alembic.
+- Do not add database models.
+- Do not add Redis application code.
+- Do not add carbon calculation logic.
+- Do not add new API endpoints beyond /healthz.
+- Do not unlock or implement T003.
 
 Acceptance criteria:
-- docker compose up starts the stack.
-- /healthz works in the container.
-- README has exact run commands.
-
----
+- `scripts/quality-gate.sh` passes.
+- `docker compose config` passes.
+- `docker compose build` passes.
+- `docker compose up` starts api, postgres, and redis.
+- `curl http://localhost:8000/healthz` returns `{"status":"ok"}`.
+- README has exact local Docker run, test, and teardown commands.---
 
 ## Future tickets
 
