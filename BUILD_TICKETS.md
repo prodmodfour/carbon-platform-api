@@ -154,11 +154,58 @@ Acceptance criteria:
 - Logs are structured JSON.
 - Request completion logs include request_id, method, path, status_code, and duration_ms.
 - Tests cover config defaults, env overrides, request ID behaviour, and structured request logging.
+
+## T004 — Database models and migrations
+
+Status: TODO
+
+Goal:
+Add PostgreSQL persistence with SQLAlchemy and Alembic migrations.
+
+Requirements:
+- Add SQLAlchemy 2.x.
+- Add Alembic.
+- Use async database access if feasible without excessive complexity.
+- Add database configuration settings using the existing settings module.
+- Add models:
+  - workspaces
+  - usage_samples
+  - carbon_intensity_samples
+- Add Alembic migration for the initial schema.
+- Add repository layer for workspace CRUD only.
+- Add integration tests for workspace repository behaviour.
+- Tests should use a real PostgreSQL service where practical.
+- Update README with migration commands.
+- Update docs/architecture.md with the data model.
+- Update scripts/quality-gate.sh only if needed to support database tests.
+
+Expected structure:
+- `src/carbon_platform_api/db/`
+- `src/carbon_platform_api/models/`
+- `src/carbon_platform_api/repositories/`
+- `alembic/`
+- `alembic.ini`
+
+Scope limits:
+- Do not add workspace API endpoints yet.
+- Do not add carbon calculation logic.
+- Do not add Redis application logic.
+- Do not add carbon intensity external API client.
+- Do not add reporting endpoints.
+- Do not add `/readyz`.
+- Do not add `/metrics`.
+- Do not unlock or implement T005.
+
+Acceptance criteria:
+- `scripts/quality-gate.sh` passes.
+- `alembic upgrade head` works.
+- Workspace repository can create, list, and fetch workspaces.
+- Repository tests pass.
+- No direct database logic appears in route handlers.
 ## Future tickets
 
 The following are intentionally LOCKED for Day 1. Do not implement them yet.
 
-- T004 Database models and migrations
 - T005 Workspace API
 - T006 Carbon calculation service
 - T007 Carbon intensity client with Redis cache
