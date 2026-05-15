@@ -93,33 +93,67 @@ Acceptance criteria:
 Status: TODO
 
 Goal:
-Add environment configuration and structured JSON logging.
+Add environment configuration and structured JSON logging without adding persistence, cache integration, carbon logic, or new business endpoints.
 
 Requirements:
-- Add Pydantic settings.
-- Load environment-based configuration.
-- Add JSON structured logging.
+- Add `pydantic-settings` as a dependency if needed.
+- Add a settings module using Pydantic settings.
+- Settings should load from environment variables with a clear prefix, for example `CARBON_API_`.
+- Include settings for:
+  - app_name
+  - app_version
+  - environment
+  - log_level
+  - docs_enabled
+- Keep docs/OpenAPI disabled by default.
+- Add JSON structured logging using the standard library unless a dependency is strongly justified.
 - Add request ID middleware.
-- Logs include request_id, method, path, status_code, and duration_ms.
-- No secrets logged.
-- Add tests for config defaults and request ID behaviour.
-- Keep /healthz as the only API endpoint unless required for tests.
+- If the request includes `X-Request-ID`, propagate it.
+- If no `X-Request-ID` is provided, generate one.
+- Add `X-Request-ID` to every response.
+- Request completion logs must include:
+  - request_id
+  - method
+  - path
+  - status_code
+  - duration_ms
+- Do not log secrets or full environment dumps.
+- Add tests for settings defaults.
+- Add tests for environment variable overrides.
+- Add tests for request ID generation.
+- Add tests for request ID propagation.
+- Add tests that a completed request emits a structured log with the required fields.
+- Update README if new environment variables are introduced.
+- Update docs/architecture.md if middleware/config/logging structure is introduced.
+
+Expected structure:
+- `src/carbon_platform_api/config.py`
+- `src/carbon_platform_api/logging.py`
+- `src/carbon_platform_api/middleware/request_id.py`
+- tests for config/logging/request ID behaviour
 
 Scope limits:
 - Do not add database models.
 - Do not add SQLAlchemy.
+- Do not add Alembic.
 - Do not add Redis application logic.
 - Do not add carbon calculation logic.
 - Do not add workspace endpoints.
+- Do not add `/readyz`.
+- Do not add `/metrics`.
+- Do not add authentication.
 - Do not unlock or implement T004.
 
 Acceptance criteria:
 - `scripts/quality-gate.sh` passes.
 - App starts locally.
 - App starts under Docker Compose.
-- Request IDs are generated or propagated.
+- `GET /healthz` still returns `{"status":"ok"}`.
+- `GET /healthz` response includes `X-Request-ID`.
+- Supplied `X-Request-ID` is propagated.
 - Logs are structured JSON.
-- Tests cover config defaults and request ID behaviour.
+- Request completion logs include request_id, method, path, status_code, and duration_ms.
+- Tests cover config defaults, env overrides, request ID behaviour, and structured request logging.
 ## Future tickets
 
 The following are intentionally LOCKED for Day 1. Do not implement them yet.
