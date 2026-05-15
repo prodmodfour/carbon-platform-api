@@ -88,11 +88,42 @@ Acceptance criteria:
 
 ---
 
+## T003 — Config and structured logging
+
+Status: TODO
+
+Goal:
+Add environment configuration and structured JSON logging.
+
+Requirements:
+- Add Pydantic settings.
+- Load environment-based configuration.
+- Add JSON structured logging.
+- Add request ID middleware.
+- Logs include request_id, method, path, status_code, and duration_ms.
+- No secrets logged.
+- Add tests for config defaults and request ID behaviour.
+- Keep /healthz as the only API endpoint unless required for tests.
+
+Scope limits:
+- Do not add database models.
+- Do not add SQLAlchemy.
+- Do not add Redis application logic.
+- Do not add carbon calculation logic.
+- Do not add workspace endpoints.
+- Do not unlock or implement T004.
+
+Acceptance criteria:
+- `scripts/quality-gate.sh` passes.
+- App starts locally.
+- App starts under Docker Compose.
+- Request IDs are generated or propagated.
+- Logs are structured JSON.
+- Tests cover config defaults and request ID behaviour.
 ## Future tickets
 
 The following are intentionally LOCKED for Day 1. Do not implement them yet.
 
-- T003 Config and structured logging
 - T004 Database models and migrations
 - T005 Workspace API
 - T006 Carbon calculation service
