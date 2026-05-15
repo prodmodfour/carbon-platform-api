@@ -8,6 +8,12 @@ services:
     image: ${API_IMAGE_NAME:-carbon-platform-api}:${API_IMAGE_TAG:-local}
     ports:
       - "${API_HOST_PORT:-8000}:8000"
+    environment:
+      CARBON_API_APP_NAME: ${CARBON_API_APP_NAME:-carbon-platform-api}
+      CARBON_API_APP_VERSION: ${CARBON_API_APP_VERSION:-0.1.0}
+      CARBON_API_ENVIRONMENT: ${CARBON_API_ENVIRONMENT:-local}
+      CARBON_API_LOG_LEVEL: ${CARBON_API_LOG_LEVEL:-INFO}
+      CARBON_API_DOCS_ENABLED: ${CARBON_API_DOCS_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy

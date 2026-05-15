@@ -47,20 +47,28 @@ The API is exposed on `http://localhost:8000`, PostgreSQL on `localhost:5432`, a
 ## Health check
 
 ```sh
-curl http://127.0.0.1:8000/healthz
+curl -i http://127.0.0.1:8000/healthz
 ```
 
-Expected response:
+Expected response body:
 
 ```json
 {"status":"ok"}
 ```
+
+The response includes an `X-Request-ID` header. Supplying `X-Request-ID` on the request propagates the same value to the response and request completion log.
 
 ## Docker teardown
 
 ```sh
 docker compose down --volumes --remove-orphans
 ```
+
+## Logging
+
+Application request completion logs are JSON objects written through the standard library logging stack. Each completed request log includes `request_id`, `method`, `path`, `status_code`, and `duration_ms`.
+
+Set `CARBON_API_LOG_LEVEL` to a standard library level such as `DEBUG`, `INFO`, or `WARNING` to adjust verbosity.
 
 ## Quality checks
 
@@ -87,4 +95,4 @@ The full gate validates Python checks and runs `docker compose config` when `doc
 - No Redis/cache application code.
 - No authentication or authorization.
 - No carbon usage ingestion or reporting endpoints.
-- No metrics or structured logging beyond framework defaults.
+- No metrics endpoint or tracing integration.

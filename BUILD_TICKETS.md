@@ -90,7 +90,7 @@ Acceptance criteria:
 
 ## T003 — Config and structured logging
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add environment configuration and structured JSON logging without adding persistence, cache integration, carbon logic, or new business endpoints.
