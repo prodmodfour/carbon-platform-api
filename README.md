@@ -25,7 +25,7 @@ Current implemented capabilities:
 - Docker Compose local stack for API, PostgreSQL, Redis, Prometheus, and Grafana.
 - Public-safe GitHub Actions CI for linting, formatting, type checks, tests, migrations, and Compose validation.
 
-Out of scope today: OAuth, user accounts, password storage, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and production-grade carbon factors.
+Out of scope today: OAuth, user accounts, password storage, deployment automation/IaC, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and production-grade carbon factors.
 
 ## Requirements
 
@@ -274,6 +274,10 @@ The quality gate runs shell syntax checks, public-safety scanning, route-layerin
 
 GitHub Actions runs the `CI` workflow on pull requests and pushes to the default `main` branch. It uses public-safe local PostgreSQL service credentials for integration tests, caches `uv` dependencies from `uv.lock`, and runs the same substantive checks as the local quality gate. The workflow does not require repository secrets, upload coverage, run deployment jobs, or call external carbon providers.
 
+## Deployment guidance
+
+A cloud-neutral deployment guide is available at [Deployment guide](docs/deployment.md). It documents a public-safe container deployment path, required runtime settings, health checks, explicit Alembic migrations, rollback planning, and operational risks. The guide intentionally does not add CI deployment jobs, real cloud accounts, real hostnames, credentials, or IaC files.
+
 ## Automation build loop
 
 `scripts/build-loop.sh` runs bounded pi build cycles. It requires a clean working tree, pulls with `git pull --ff-only` when the branch has an upstream, refuses to start while ahead of upstream unless `--allow-ahead` or `PI_BUILD_ALLOW_AHEAD=1` is set, and stops if the upstream changes during a cycle.
@@ -289,12 +293,13 @@ GitHub Actions runs the `CI` workflow on pull requests and pushes to the default
 - API key authentication is a simple portfolio-demo mechanism only; it does not include OAuth, user accounts, password storage, key rotation, rate limiting, or authorization roles.
 - FastAPI docs/OpenAPI routes are disabled by default.
 - Prometheus and Grafana are local Docker Compose services for metrics exploration only.
-- No hosted monitoring integration, tracing integration, deployment automation, or secret-management integration is configured.
+- A cloud-neutral deployment guide is documented, but no deployment automation, IaC, hosted monitoring integration, tracing integration, or secret-management integration is configured.
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Runbook](docs/runbook.md)
+- [Deployment guide](docs/deployment.md)
 - [Sample API walkthrough](docs/api-walkthrough.md)
 - [ADR 0001: Project scope](docs/adr/0001-project-scope.md)
 - [ADR 0002: Layered architecture and mockable boundaries](docs/adr/0002-layered-architecture-and-mockable-boundaries.md)

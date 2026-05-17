@@ -16,8 +16,9 @@ Implemented scope:
 - Mockable carbon calculation, carbon intensity client, and Redis cache services.
 - Docker Compose local stack for API, PostgreSQL, Redis, Prometheus, and Grafana.
 - Local quality gate and GitHub Actions CI.
+- Cloud-neutral deployment guidance without deployment automation or IaC files.
 
-Intentionally excluded today: OAuth, user accounts, password storage, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and authoritative carbon accounting factors.
+Intentionally excluded today: OAuth, user accounts, password storage, deployment automation/IaC, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and authoritative carbon accounting factors.
 
 ## System context
 
@@ -377,6 +378,10 @@ docker-compose.yml
 
 The API container runs as a non-root user and has a container health check against `GET /healthz`. PostgreSQL and Redis have image-native health checks. Prometheus scrapes the API at `api:8000/metrics` inside the Compose network. Grafana provisions a local Prometheus datasource and dashboard from repository files. Grafana placeholder credentials are local-only and not production credentials.
 
+## Deployment guidance
+
+[Deployment guide](deployment.md) documents a public-safe, cloud-neutral release path for a containerized API, PostgreSQL, Redis, health/readiness probes, metrics scraping, explicit Alembic migrations, rollback planning, and operational risks. It intentionally does not introduce deployment automation, real cloud accounts, real hostnames, credentials, secret-management integration, or IaC files.
+
 ## Quality gate and CI
 
 Local quality gate flow:
@@ -409,4 +414,4 @@ GitHub Actions runs the same substantive checks on pull requests and pushes to `
 - API key auth is intentionally simple for portfolio demo use; there is no OAuth, user account model, password storage, key rotation, rate limiting, or role-based authorization.
 - FastAPI docs/OpenAPI routes are disabled by default.
 - Prometheus and Grafana are local-only Compose services.
-- No tracing, hosted monitoring, deployment automation, or secret-management integration is configured.
+- Deployment guidance is documentation only; no tracing, hosted monitoring, deployment automation, IaC, or secret-management integration is configured.

@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T014 is complete. Optional API key authentication can now protect business endpoints when enabled through `CARBON_API_AUTH_ENABLED` and configured local placeholder keys. Workspace, usage ingestion, and reporting endpoints require `X-API-Key` when auth is enabled, while `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected for local operations and scraping. README, runbook, architecture docs, the walkthrough, Docker Compose, example.env, and tests were updated.
+T015 is complete. A public-safe, cloud-neutral deployment guide now documents a container deployment path, required `CARBON_API_*` runtime settings, health/readiness/metrics checks, explicit Alembic migrations, rollback planning, and operational risks. README, architecture docs, runbook, and documentation consistency tests were updated. No CI deployment jobs, real cloud accounts, credentials, hostnames, or IaC files were added.
 
 ## Last completed ticket
 
-T014 — API key auth.
+T015 — Deployment docs / IaC.
 
 ## Current blockers
 
@@ -117,6 +117,11 @@ None.
 - T014: `uv run python scripts/check-no-private-terms.py` — passed.
 - T014: `docker compose config` — passed.
 - T014: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 95 tests and 95% total coverage.
+- T015: `uv run pytest tests/test_documentation.py -q` — passed with 6 documentation consistency tests.
+- T015: `uv run ruff check .` — passed.
+- T015: `uv run ruff format --check .` — passed.
+- T015: `uv run python scripts/check-no-private-terms.py` — passed.
+- T015: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 96 tests and 95% total coverage.
 
 ## Limitations
 
@@ -134,7 +139,8 @@ None.
 - GitHub Actions CI validates quality gates only; it does not upload coverage, deploy artifacts, or require repository secrets.
 - API key auth is optional and disabled by default; when enabled, it is a simple portfolio-demo mechanism without OAuth, user accounts, password storage, key rotation, rate limiting, or role-based authorization.
 - `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected when API key auth is enabled.
+- Deployment guidance is cloud-neutral documentation only; no deployment automation, CI deployment jobs, IaC files, real cloud accounts, private hostnames, credentials, or secret-management integration were added.
 
 ## Notes for next cycle
 
-Recommended next ticket: T015 — Deployment docs / IaC.
+Recommended next ticket: T016 — Portfolio readiness audit.

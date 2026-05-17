@@ -522,7 +522,7 @@ Acceptance criteria:
 
 ## T015 — Deployment docs / IaC
 
-Status: TODO
+Status: DONE
 
 Goal:
 Document a public-safe deployment path and optional infrastructure-as-code skeleton.

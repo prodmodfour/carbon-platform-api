@@ -254,6 +254,10 @@ scripts/quality-gate.sh
 
 The full gate validates shell syntax, public-safety scanning, route-layering rules, Ruff, Ruff format, mypy, Docker Compose syntax, Alembic migrations, and pytest coverage. It starts an isolated PostgreSQL service and removes the quality-gate database volume during cleanup.
 
+## Deployment planning
+
+For non-local deployment planning, use the public-safe [Deployment guide](deployment.md). It covers required runtime settings, explicit Alembic migrations, `GET /healthz` and `GET /readyz` probes, `GET /metrics` scraping, rollback considerations, and operational risks without adding real cloud accounts, credentials, private hostnames, CI deployment jobs, or IaC files.
+
 ## Common operations
 
 ### Reset the local database
@@ -317,4 +321,4 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 - API key auth is a simple local demo mechanism only; it does not provide OAuth, user accounts, password storage, key rotation, rate limiting, or authorization roles.
 - Prometheus and Grafana are local-only Compose services for metrics exploration.
 - Grafana uses safe local placeholder credentials by default and is not production-hardened.
-- No tracing integration, hosted monitoring integration, deployment automation, or secret-management integration is configured.
+- Deployment guidance is cloud-neutral documentation only; no tracing integration, hosted monitoring integration, deployment automation, IaC, or secret-management integration is configured.

@@ -10,6 +10,7 @@ PUBLIC_DOC_PATHS = (
     "README.md",
     "docs/architecture.md",
     "docs/runbook.md",
+    "docs/deployment.md",
     "docs/api-walkthrough.md",
 )
 ADR_PATHS = (
@@ -88,10 +89,37 @@ def test_documentation_index_links_walkthrough_and_adrs() -> None:
     """README should guide readers to the walkthrough and accepted ADRs."""
     readme = read_project_file("README.md")
 
+    assert "[Deployment guide](docs/deployment.md)" in readme
     assert "[Sample API walkthrough](docs/api-walkthrough.md)" in readme
     for adr_path in ADR_PATHS:
         assert adr_path in readme
         assert "## Status\n\nAccepted" in read_project_file(adr_path)
+
+
+def test_deployment_guide_covers_safe_release_operations() -> None:
+    """Deployment docs should cover the T015 operational checklist safely."""
+    deployment = read_project_file("docs/deployment.md")
+
+    required_phrases = (
+        "public-safe",
+        "CARBON_API_DATABASE_URL",
+        "CARBON_API_REDIS_URL",
+        "CARBON_API_AUTH_ENABLED",
+        "CARBON_API_AUTH_API_KEYS",
+        "GET /healthz",
+        "GET /readyz",
+        "GET /metrics",
+        "uv run alembic upgrade head",
+        "## Rollback plan",
+        "## Operational risks and mitigations",
+        "No infrastructure-as-code skeleton is included",
+    )
+    for phrase in required_phrases:
+        assert phrase in deployment
+
+    local_only_values = ("local_dev_password", "local-demo-api-key", "local_admin")
+    for value in local_only_values:
+        assert value not in deployment
 
 
 def test_walkthrough_uses_fake_data_and_core_flow() -> None:
