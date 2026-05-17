@@ -203,6 +203,33 @@ Acceptance criteria:
 - Repository tests pass.
 - No direct database logic appears in route handlers.
 
+## TAUTO — Automation hardening
+
+Status: TODO
+
+Goal:
+Prepare the project for multi-cycle autonomous implementation.
+
+Requirements:
+- Update `scripts/build-loop.sh` so the prompt requires the agent to select the lowest-numbered TODO or IN_PROGRESS ticket.
+- Add remote sync checks before each cycle:
+  - refuse to start if working tree is dirty
+  - run `git pull --ff-only` when an upstream exists
+  - refuse to continue if branch is ahead before a cycle starts unless explicitly allowed
+  - refuse to continue if remote advanced during a cycle
+- Add `scripts/check-no-private-terms.py` to fail if obvious private/employer/internal terms are committed.
+- Add `scripts/check-layering.py` to fail if route modules import SQLAlchemy models, SQLAlchemy sessions, Alembic, or repositories directly in a way that bypasses services.
+- Add both checks to `scripts/quality-gate.sh`.
+- Expand `BUILD_TICKETS.md` so T005–T015 are full TODO ticket sections, not only locked bullet points.
+- Add a final `T016 — Portfolio readiness audit` ticket.
+- Do not implement application features in this ticket.
+
+Acceptance criteria:
+- `scripts/quality-gate.sh` passes.
+- Build loop still works.
+- Remaining backlog is explicit.
+- Agent is instructed to use lowest-numbered ticket order.
+
 ## Future tickets
 
 The following are intentionally LOCKED for later days. Do not implement them yet.
