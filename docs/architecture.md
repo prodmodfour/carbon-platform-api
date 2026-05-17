@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T008 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace and usage sample repositories, and services behind the HTTP routes.
+T009 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace, usage sample, and reporting repositories, and services behind the HTTP routes.
 
-The application intentionally does not include reporting, authentication, metrics, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
+The application intentionally does not include authentication, metrics, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
 
 ## Package layout
 
@@ -20,17 +20,21 @@ src/carbon_platform_api/
   db/session.py                     Async SQLAlchemy engine/session factory helpers
   middleware/request_id.py          Request ID response header and completion logging
   models/                           SQLAlchemy persistence models
+  repositories/reports.py           Read-only reporting aggregates using an async SQLAlchemy session
   repositories/usage_samples.py     Usage sample repository using an async SQLAlchemy session
   repositories/workspaces.py        Workspace repository using an async SQLAlchemy session
   routes/health.py                  HTTP route for GET /healthz
+  routes/reports.py                 HTTP routes for summary reports
   routes/workspaces.py              HTTP routes for workspace create/list/fetch and usage ingestion
   schemas/carbon_calculations.py    Calculation input/output schemas and enums
   schemas/carbon_intensity.py       Carbon intensity query/sample value objects
   schemas/health.py                 Response schema for the health endpoint
+  schemas/reports.py                Response schemas for summary reports
   schemas/usage_samples.py          Request/response schemas for usage ingestion
   schemas/workspaces.py             Request/response schemas for workspace endpoints
   services/carbon_calculations.py   Carbon calculation service and provider protocols
   services/carbon_intensity.py      Cache-first carbon intensity lookup service
+  services/reporting.py             Report input validation and repository coordination service
   services/usage_ingestion.py       Usage sample validation/calculation/persistence service
   services/workspaces.py            Workspace business service and repository protocol
 alembic/
@@ -123,6 +127,40 @@ UsageSampleIngestionRequest
 
 Usage ingestion currently uses the carbon intensity value supplied in the request. It does not call the external carbon intensity provider or Redis cache. Missing workspaces become `404 Not Found`; incompatible resource/unit pairs become `422 Unprocessable Content`.
 
+## Reporting flow
+
+`carbon_platform_api.schemas.reports` defines the public summary response shape:
+
+```text
+ReportSummaryResponse
+  time_range              start_time/end_time filters echoed back to the caller
+  total                   overall sample count, kWh, and estimated grams CO2e
+  by_workspace            totals grouped by workspace ID and name
+  by_provider             totals grouped by provider label
+  by_region               totals grouped by region label
+```
+
+`ReportingService` depends on small protocols for read-only report aggregation and workspace lookup. It validates that supplied time filters are timezone-aware and that `start_time` is before `end_time` when both are provided. Workspace-scoped reports verify workspace existence before querying aggregates. `ReportingRepository` owns the SQLAlchemy aggregate queries and returns repository records, keeping report route handlers free of database logic.
+
+Report filtering semantics are intentionally simple and deterministic:
+
+- `start_time` is an inclusive `usage_samples.measured_at` lower bound.
+- `end_time` is an exclusive `usage_samples.measured_at` upper bound.
+- omitted bounds are unbounded.
+- empty reports return zero totals and empty grouping arrays.
+
+The two reporting endpoints share the same service flow:
+
+```text
+GET /reports/summary or /workspaces/{workspace_id}/reports/summary
+  -> parse optional start_time/end_time query parameters
+  -> ReportingService validates time range and optional workspace existence
+  -> ReportingRepository reads totals grouped by workspace, provider, and region
+  -> route serializes ReportSummaryResponse
+```
+
+Invalid time ranges return `422 Unprocessable Content`; missing workspace-scoped reports return `404 Not Found`.
+
 ## Carbon calculation flow
 
 `carbon_platform_api.schemas.carbon_calculations` defines the calculation input and output shapes plus supported demo resource and usage-unit enums. `carbon_platform_api.services.carbon_calculations.CarbonCalculationService` calculates emissions using this flow:
@@ -185,7 +223,7 @@ The project follows this dependency direction as features are added:
 routes -> schemas -> services -> repositories/clients -> database/cache/external APIs
 ```
 
-Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace and usage ingestion routes depend on schemas and services, while FastAPI dependency wiring constructs the concrete async session and repositories. External HTTP access is isolated in `clients/`, and Redis access is isolated in `cache/`. No route handler imports SQLAlchemy, performs persistence work, calls external HTTP providers, or talks to Redis. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
+Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace, usage ingestion, and reporting routes depend on schemas and services, while FastAPI dependency wiring constructs the concrete async session and repositories. External HTTP access is isolated in `clients/`, and Redis access is isolated in `cache/`. No route handler imports SQLAlchemy, performs persistence work, calls external HTTP providers, or talks to Redis. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
 
 ## Automation guardrails
 
@@ -203,10 +241,14 @@ The full quality gate includes two repository safety checks:
 - `GET /workspaces` returns a JSON array of workspaces.
 - `GET /workspaces/{workspace_id}` returns one workspace by UUID.
 - `POST /workspaces/{workspace_id}/usage-samples` accepts one compute usage sample and returns the persisted raw and calculated fields.
+- `GET /workspaces/{workspace_id}/reports/summary` returns summary totals for one workspace.
+- `GET /reports/summary` returns summary totals across all workspaces.
 
 Workspace names must be non-blank, at most 120 characters, and unique. Duplicate names return `409 Conflict`; missing workspace IDs return `404 Not Found`.
 
 Usage ingestion accepts `provider`, `region`, `resource_type`, `usage_amount`, `usage_unit`, `measured_at`, and `carbon_intensity_grams_co2e_per_kwh`. It stores calculated `normalized_usage_amount`, `normalized_usage_unit`, `energy_kwh`, `estimated_grams_co2e`, and `factor_source`. Incompatible resource/unit pairs return `422 Unprocessable Content`.
+
+Reporting accepts optional `start_time` and `end_time` query parameters on both summary endpoints. Responses include an overall total and totals grouped by workspace, provider, and region. Time filters must be timezone-aware. `start_time` is inclusive, `end_time` is exclusive, and invalid ranges return `422 Unprocessable Content`.
 
 No HTTP endpoint exposes direct carbon intensity lookup yet; that service is available for future flows.
 

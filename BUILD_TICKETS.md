@@ -352,7 +352,7 @@ Acceptance criteria:
 
 ## T009 — Reporting endpoints
 
-Status: TODO
+Status: DONE
 
 Goal:
 Expose basic carbon usage reports for workspaces.

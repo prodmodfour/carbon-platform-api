@@ -13,6 +13,7 @@ from carbon_platform_api.db.session import (
 from carbon_platform_api.logging import configure_logging
 from carbon_platform_api.middleware.request_id import RequestIdMiddleware
 from carbon_platform_api.routes.health import router as health_router
+from carbon_platform_api.routes.reports import router as reports_router
 from carbon_platform_api.routes.workspaces import router as workspace_router
 
 
@@ -47,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     app.include_router(health_router)
     app.include_router(workspace_router)
+    app.include_router(reports_router)
     return app
 
 

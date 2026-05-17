@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
 
 ## Public-safety constraints
 
@@ -15,9 +15,11 @@ This repository uses only public-safe sample code and documentation. Do not add 
 - `GET /workspaces` lists workspaces.
 - `GET /workspaces/{workspace_id}` fetches one workspace by UUID.
 - `POST /workspaces/{workspace_id}/usage-samples` ingests one compute usage sample, calculates a demo emissions estimate from caller-supplied carbon intensity, and persists the raw and calculated fields.
+- `GET /workspaces/{workspace_id}/reports/summary` returns usage and estimated-emissions totals for one workspace.
+- `GET /reports/summary` returns usage and estimated-emissions totals across all workspaces.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-Workspace and usage ingestion endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication, metrics, or reporting.
+Workspace, usage ingestion, and reporting endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication or metrics.
 
 ## Requirements
 
@@ -63,7 +65,7 @@ Then check the liveness endpoint:
 curl -i http://127.0.0.1:8000/healthz
 ```
 
-Apply database migrations before calling workspace or usage ingestion endpoints locally.
+Apply database migrations before calling workspace, usage ingestion, or reporting endpoints locally.
 
 ## Run locally with Docker
 
@@ -106,7 +108,7 @@ docker compose down --volumes --remove-orphans
 
 ## Database migrations
 
-Start PostgreSQL, then apply the Alembic schema migration from the host before using workspace or usage ingestion endpoints:
+Start PostgreSQL, then apply the Alembic schema migration from the host before using workspace, usage ingestion, or reporting endpoints:
 
 ```sh
 docker compose up --detach postgres
@@ -166,6 +168,24 @@ curl -i \
 ```
 
 Supported `resource_type` values are `vcpu`, `memory`, `storage`, and `network`. Supported `usage_unit` values are `vcpu_hour`, `vcpu_minute`, `gb_hour`, `gb_minute`, `gb_month`, `tb_month`, `gb`, `mb`, and `tb`; not every unit is compatible with every resource type. The endpoint returns the persisted sample with calculated `normalized_usage_amount`, `normalized_usage_unit`, `energy_kwh`, `carbon_intensity_grams_co2e_per_kwh`, `estimated_grams_co2e`, and `factor_source` fields. Missing workspaces return `404 Not Found`; incompatible resource/unit pairs return `422 Unprocessable Content`.
+
+## Reporting API examples
+
+Fetch a summary for one workspace, replacing the UUID with a workspace ID returned by the workspace API:
+
+```sh
+curl -i \
+  'http://127.0.0.1:8000/workspaces/00000000-0000-0000-0000-000000000000/reports/summary?start_time=2026-01-01T00:00:00Z&end_time=2026-02-01T00:00:00Z'
+```
+
+Fetch a summary across all workspaces:
+
+```sh
+curl -i \
+  'http://127.0.0.1:8000/reports/summary?start_time=2026-01-01T00:00:00Z&end_time=2026-02-01T00:00:00Z'
+```
+
+Report responses include the applied `time_range`, an overall `total`, and totals grouped in `by_workspace`, `by_provider`, and `by_region`. The `start_time` filter is inclusive and the `end_time` filter is exclusive; both must be timezone-aware when supplied. Invalid ranges where `start_time` is not before `end_time` return `422 Unprocessable Content`. Missing workspace-scoped reports return `404 Not Found`. Empty reports return zero totals with empty group arrays.
 
 ## Development commands
 

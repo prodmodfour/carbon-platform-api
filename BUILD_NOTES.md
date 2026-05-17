@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T008 is complete. The project now includes usage sample ingestion through `POST /workspaces/{workspace_id}/usage-samples`, request/response schemas, a usage ingestion service, a usage sample repository, and Alembic/model fields for persisted calculated estimates. The service validates workspace existence through a repository protocol, calculates emissions through the carbon calculation protocol, and persists raw plus calculated fields through the repository boundary.
+T009 is complete. The project now includes summary reporting through `GET /workspaces/{workspace_id}/reports/summary` and `GET /reports/summary`, report response schemas, a reporting service, and a read-only reporting repository with aggregate queries grouped by workspace, provider, and region. The service validates time filters and workspace existence while keeping SQLAlchemy aggregation inside the repository boundary.
 
 ## Last completed ticket
 
-T008 — Usage sample ingestion.
+T009 — Reporting endpoints.
 
 ## Current blockers
 
@@ -78,19 +78,25 @@ None.
 - T008: `uv run python scripts/check-layering.py` — passed.
 - T008: `uv run python scripts/check-no-private-terms.py` — passed.
 - T008: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 56 tests and 93% total coverage.
+- T009: `uv run ruff check .` — passed.
+- T009: `uv run ruff format --check .` — passed.
+- T009: `uv run mypy src tests` — passed.
+- T009: `uv run pytest tests/test_reporting_service.py tests/test_reports_api.py -q` — passed with 8 tests.
+- T009: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 66 tests and 94% total coverage.
 
 ## Limitations
 
-- Workspace and usage ingestion endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
+- Workspace, usage ingestion, and reporting endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative energy or emissions measurements.
 - Usage ingestion requires caller-supplied carbon intensity values; it does not call the carbon intensity provider or Redis cache.
 - Direct carbon intensity lookup is not exposed through HTTP yet.
 - The default carbon intensity provider URL is a public-safe `.invalid` placeholder; tests use fakes and do not depend on a live provider.
 - Redis cache code exists, but no current API endpoint calls it yet.
+- Reporting uses simple aggregate queries over persisted usage samples only; it does not provide time buckets, rollups, pagination, or materialized summaries.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No authentication, metrics endpoint, or reporting endpoints are included.
+- No authentication, readiness endpoint, metrics endpoint, or dashboards are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T009 — Reporting endpoints.
+Recommended next ticket: T010 — Observability endpoints.
