@@ -157,7 +157,7 @@ Acceptance criteria:
 
 ## T004 — Database models and migrations
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add PostgreSQL persistence with SQLAlchemy and Alembic migrations.

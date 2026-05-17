@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T003 is complete. The API now has Pydantic Settings loaded from `CARBON_API_` environment variables, standard-library structured JSON logging, request ID middleware, and documentation for the new configuration and observability behavior. `GET /healthz` still returns `{"status":"ok"}` and now includes an `X-Request-ID` response header; supplied request IDs are propagated.
+T004 is complete. The API now has async SQLAlchemy/PostgreSQL persistence foundations, Alembic migrations, three initial data models (`workspaces`, `usage_samples`, and `carbon_intensity_samples`), and a workspace repository that can create, list, and fetch workspaces. No workspace API endpoints were added.
 
 ## Last completed ticket
 
-T003 — Config and structured logging.
+T004 — Database models and migrations.
 
 ## Current blockers
 
@@ -43,13 +43,20 @@ None.
 - T003: `sudo -n docker compose down --volumes --remove-orphans` — passed via cleanup trap.
 - T003: `scripts/quality-gate.sh` — passed with Ruff, Ruff format check, mypy, pytest coverage, and `docker compose config`.
 
+2026-05-17:
+- T004: `uv run ruff check .` — passed.
+- T004: `uv run ruff format --check .` — passed.
+- T004: `uv run mypy src tests` — passed.
+- T004: `scripts/quality-gate.sh` — passed with Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 12 tests and 97% total coverage.
+
 ## Limitations
 
 - Only `GET /healthz` is implemented as a business/API endpoint.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
-- PostgreSQL and Redis are available as local Docker infrastructure only; the application does not connect to them yet.
-- No SQLAlchemy, Alembic, database models, Redis application code, carbon calculations, external API clients, authentication, metrics endpoint, or additional business endpoints are included.
+- PostgreSQL persistence currently exists only as models, migrations, async database helpers, and the workspace repository; no API route uses it yet.
+- Redis is available as local Docker infrastructure only; the application does not connect to it yet.
+- No carbon calculations, external API clients, authentication, metrics endpoint, reporting endpoints, or additional business endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T004 Database models and migrations, if it is unlocked in `BUILD_TICKETS.md`.
+Recommended next ticket: T005 Workspace API, if it is unlocked in `BUILD_TICKETS.md`.

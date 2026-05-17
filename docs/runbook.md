@@ -58,6 +58,26 @@ Expected response body:
 
 The response includes an `X-Request-ID` header. Supplying `X-Request-ID` on the request propagates the same value to the response and request completion log.
 
+## Database migrations
+
+Start PostgreSQL if it is not already running:
+
+```sh
+docker compose up --detach postgres
+```
+
+Apply the current Alembic schema:
+
+```sh
+CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic upgrade head
+```
+
+Roll back all local migrations:
+
+```sh
+CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic downgrade base
+```
+
 ## Docker teardown
 
 ```sh
@@ -72,9 +92,10 @@ Set `CARBON_API_LOG_LEVEL` to a standard library level such as `DEBUG`, `INFO`, 
 
 ## Quality checks
 
-Run individual checks:
+Run individual checks. Repository tests require PostgreSQL, so start it before `make test` when not using the full gate.
 
 ```sh
+docker compose up --detach postgres
 make test
 make lint
 make typecheck
@@ -86,13 +107,12 @@ Run the full gate:
 scripts/quality-gate.sh
 ```
 
-The full gate validates Python checks and runs `docker compose config` when `docker-compose.yml` exists.
+The full gate validates Python checks, runs `docker compose config`, starts an isolated PostgreSQL service, applies Alembic migrations, runs repository integration tests, and removes the quality-gate database volume during cleanup.
 
 ## Current operational limitations
 
-- PostgreSQL and Redis are available only as local infrastructure; the application does not use them yet.
-- No database migrations or persistent application storage.
-- No Redis/cache application code.
+- PostgreSQL persistence is available through models, migrations, and the workspace repository only; no API endpoint uses it yet.
+- Redis is available only as local infrastructure; no Redis/cache application code exists yet.
 - No authentication or authorization.
 - No carbon usage ingestion or reporting endpoints.
 - No metrics endpoint or tracing integration.

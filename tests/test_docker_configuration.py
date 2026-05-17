@@ -32,6 +32,7 @@ def test_compose_declares_required_services_ports_and_healthchecks() -> None:
     assert '"${POSTGRES_HOST_PORT:-5432}:5432"' in compose
     assert '"${REDIS_HOST_PORT:-6379}:6379"' in compose
     assert "http://127.0.0.1:8000/healthz" in compose
+    assert "CARBON_API_DATABASE_URL" in compose
     assert "pg_isready" in compose
     assert "redis-cli" in compose
 
@@ -42,3 +43,4 @@ def test_quality_gate_validates_compose_configuration() -> None:
 
     assert '[[ -f "docker-compose.yml" ]]' in quality_gate
     assert "docker compose config" in quality_gate
+    assert "alembic upgrade head" in quality_gate

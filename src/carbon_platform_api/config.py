@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     environment: str = "local"
     log_level: str = "INFO"
     docs_enabled: bool = False
+    database_url: str = (
+        "postgresql+asyncpg://carbon_platform_api:local_dev_password"
+        "@localhost:5432/carbon_platform_api"
+    )
 
     @field_validator("log_level")
     @classmethod

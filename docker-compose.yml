@@ -14,6 +14,7 @@ services:
       CARBON_API_ENVIRONMENT: ${CARBON_API_ENVIRONMENT:-local}
       CARBON_API_LOG_LEVEL: ${CARBON_API_LOG_LEVEL:-INFO}
       CARBON_API_DOCS_ENABLED: ${CARBON_API_DOCS_ENABLED:-false}
+      CARBON_API_DATABASE_URL: ${CARBON_API_DATABASE_URL:-postgresql+asyncpg://carbon_platform_api:local_dev_password@postgres:5432/carbon_platform_api}
     depends_on:
       postgres:
         condition: service_healthy
