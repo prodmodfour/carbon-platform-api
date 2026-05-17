@@ -1,6 +1,6 @@
 # carbon-platform-api build tickets
 
-AUTOMATION_STATUS: IN_PROGRESS
+AUTOMATION_STATUS: DONE
 
 ## Ticket status key
 
@@ -547,7 +547,7 @@ Acceptance criteria:
 
 ## T016 — Portfolio readiness audit
 
-Status: TODO
+Status: DONE
 
 Goal:
 Perform a final public-readiness and quality audit before considering the project complete.

@@ -1,14 +1,14 @@
 # Build notes
 
-AUTOMATION_STATUS: IN_PROGRESS
+AUTOMATION_STATUS: DONE
 
 ## Current summary
 
-T015 is complete. A public-safe, cloud-neutral deployment guide now documents a container deployment path, required `CARBON_API_*` runtime settings, health/readiness/metrics checks, explicit Alembic migrations, rollback planning, and operational risks. README, architecture docs, runbook, and documentation consistency tests were updated. No CI deployment jobs, real cloud accounts, credentials, hostnames, or IaC files were added.
+T016 is complete. The full backlog is done, both automation status markers are set to `DONE`, and the final audit found the repository ready for public portfolio use within the documented limitations. Quality gates and Docker smoke tests passed, and no new application features were added.
 
 ## Last completed ticket
 
-T015 — Deployment docs / IaC.
+T016 — Portfolio readiness audit.
 
 ## Current blockers
 
@@ -122,6 +122,17 @@ None.
 - T015: `uv run ruff format --check .` — passed.
 - T015: `uv run python scripts/check-no-private-terms.py` — passed.
 - T015: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 96 tests and 95% total coverage.
+- T016: `uv run pytest tests/test_portfolio_readiness.py -q` — passed with 1 final readiness bookkeeping test.
+- T016: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 97 tests and 95% total coverage.
+- T016: Docker smoke test — passed using an isolated Compose project and alternate host ports; the API image built, API/PostgreSQL/Redis/Prometheus/Grafana started, Alembic migrations applied, `/healthz`, `/readyz`, `/metrics`, workspace creation, usage ingestion, workspace reporting, Prometheus target query, and Grafana health checks passed, and the stack was torn down with volumes removed.
+
+## Final audit result
+
+- Backlog audit: T001–T016 and TAUTO are marked `DONE`; no TODO, IN_PROGRESS, BLOCKED, or LOCKED implementation tickets remain.
+- Public-safety audit: documentation, examples, logs, and configuration use public-safe fake data and local placeholders only; no private hostnames, employer-specific details, real credentials, screenshots, or non-public architecture were identified.
+- Architecture audit: route-layering checks passed, route handlers remain limited to HTTP concerns, business logic stays in services, persistence stays in repositories, external HTTP calls stay in clients, and Redis access stays behind cache/readiness abstractions.
+- Test coverage audit: the suite includes endpoint, service, repository, configuration, auth, observability, Docker/CI configuration, documentation, automation guardrail, and final readiness bookkeeping tests.
+- Follow-up audit: larger non-goals remain documented as limitations; no new blocker was found for portfolio readiness.
 
 ## Limitations
 
@@ -143,4 +154,4 @@ None.
 
 ## Notes for next cycle
 
-Recommended next ticket: T016 — Portfolio readiness audit.
+Recommended next ticket: None — backlog complete.
