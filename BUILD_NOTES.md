@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T013 is complete. Public portfolio documentation is refreshed across README, architecture, and runbook docs; a public-safe sample API walkthrough now covers local setup, workspace creation, usage ingestion, reports, and metrics; and ADRs now document major design choices made since the initial skeleton. Documentation consistency tests validate links, public-safety language, endpoint coverage, walkthrough coverage, and accepted ADRs.
+T014 is complete. Optional API key authentication can now protect business endpoints when enabled through `CARBON_API_AUTH_ENABLED` and configured local placeholder keys. Workspace, usage ingestion, and reporting endpoints require `X-API-Key` when auth is enabled, while `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected for local operations and scraping. README, runbook, architecture docs, the walkthrough, Docker Compose, example.env, and tests were updated.
 
 ## Last completed ticket
 
-T013 — Documentation polish.
+T014 — API key auth.
 
 ## Current blockers
 
@@ -109,6 +109,14 @@ None.
 - T013: `uv run mypy src tests` — passed.
 - T013: `uv run python scripts/check-no-private-terms.py` — passed.
 - T013: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 86 tests and 95% total coverage.
+- T014: `uv run pytest tests/test_config.py tests/test_auth.py -q` — passed with 10 tests.
+- T014: `uv run ruff check .` — passed.
+- T014: `uv run mypy src tests` — passed.
+- T014: `uv run pytest tests/test_auth.py tests/test_config.py tests/test_documentation.py tests/test_docker_configuration.py -q` — passed with 19 tests.
+- T014: `uv run python scripts/check-layering.py` — passed.
+- T014: `uv run python scripts/check-no-private-terms.py` — passed.
+- T014: `docker compose config` — passed.
+- T014: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 95 tests and 95% total coverage.
 
 ## Limitations
 
@@ -124,8 +132,9 @@ None.
 - Prometheus and Grafana are included only as local Docker Compose services for metrics exploration; no hosted monitoring integration, alerting, or tracing is configured.
 - Grafana uses safe local placeholder credentials by default and is not production-hardened.
 - GitHub Actions CI validates quality gates only; it does not upload coverage, deploy artifacts, or require repository secrets.
-- Authentication is not included yet.
+- API key auth is optional and disabled by default; when enabled, it is a simple portfolio-demo mechanism without OAuth, user accounts, password storage, key rotation, rate limiting, or role-based authorization.
+- `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected when API key auth is enabled.
 
 ## Notes for next cycle
 
-Recommended next ticket: T014 — API key auth.
+Recommended next ticket: T015 — Deployment docs / IaC.

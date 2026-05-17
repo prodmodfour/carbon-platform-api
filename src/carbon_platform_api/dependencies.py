@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, HTTPException, Request, status
 from prometheus_client import CollectorRegistry
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -11,15 +11,43 @@ from carbon_platform_api.cache.health import (
     RedisHealthClientProtocol,
     RedisReadinessCheck,
 )
+from carbon_platform_api.config import Settings
 from carbon_platform_api.db.health import DatabaseReadinessCheck
 from carbon_platform_api.repositories.reports import ReportingRepository
 from carbon_platform_api.repositories.usage_samples import UsageSampleRepository
 from carbon_platform_api.repositories.workspaces import WorkspaceRepository
+from carbon_platform_api.services.auth import (
+    ApiKeyAuthenticationError,
+    ApiKeyAuthService,
+)
 from carbon_platform_api.services.metrics import MetricsService
 from carbon_platform_api.services.readiness import ReadinessService
 from carbon_platform_api.services.reporting import ReportingService
 from carbon_platform_api.services.usage_ingestion import UsageIngestionService
 from carbon_platform_api.services.workspaces import WorkspaceService
+
+
+def get_auth_service(request: Request) -> ApiKeyAuthService:
+    """Build the API key authentication service for a request."""
+    settings = cast(Settings, request.app.state.settings)
+    return ApiKeyAuthService(
+        auth_enabled=settings.auth_enabled,
+        api_keys=settings.auth_api_key_values,
+    )
+
+
+def require_api_key(
+    auth_service: Annotated[ApiKeyAuthService, Depends(get_auth_service)],
+    api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> None:
+    """Require a valid API key when authentication is enabled."""
+    try:
+        auth_service.validate_api_key(api_key)
+    except ApiKeyAuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key.",
+        ) from exc
 
 
 async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:

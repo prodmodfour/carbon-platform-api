@@ -1,9 +1,14 @@
 """Application configuration loaded from environment variables."""
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ALLOWED_LOG_LEVELS = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
+
+
+def _split_auth_api_keys(value: str) -> tuple[str, ...]:
+    """Split a comma-separated API key setting into non-blank keys."""
+    return tuple(key for key in (part.strip() for part in value.split(",")) if key)
 
 
 class Settings(BaseSettings):
@@ -20,6 +25,10 @@ class Settings(BaseSettings):
     environment: str = "local"
     log_level: str = "INFO"
     docs_enabled: bool = False
+    auth_enabled: bool = False
+    auth_api_keys: SecretStr = Field(
+        default=SecretStr("local-demo-api-key"), repr=False
+    )
     database_url: str = (
         "postgresql+asyncpg://carbon_platform_api:local_dev_password"
         "@localhost:5432/carbon_platform_api"
@@ -38,6 +47,21 @@ class Settings(BaseSettings):
             allowed_values = ", ".join(sorted(_ALLOWED_LOG_LEVELS))
             raise ValueError(f"log_level must be one of: {allowed_values}")
         return normalized_value
+
+    @field_validator("auth_api_keys", mode="before")
+    @classmethod
+    def normalize_auth_api_keys(cls, value: object) -> str:
+        """Trim comma-separated API keys and reject blank configuration."""
+        raw_value = value.get_secret_value() if isinstance(value, SecretStr) else value
+        api_keys = _split_auth_api_keys(str(raw_value or ""))
+        if not api_keys:
+            raise ValueError("auth_api_keys must include at least one non-blank key")
+        return ",".join(api_keys)
+
+    @property
+    def auth_api_key_values(self) -> tuple[str, ...]:
+        """Return configured API keys for authentication checks."""
+        return _split_auth_api_keys(self.auth_api_keys.get_secret_value())
 
     @field_validator("redis_url", "carbon_intensity_provider_base_url")
     @classmethod

@@ -16,6 +16,8 @@ Set a local API base URL:
 API_URL=http://127.0.0.1:8000
 ```
 
+Authentication is disabled in the default local settings. If you set `CARBON_API_AUTH_ENABLED=true`, add `X-API-Key: local-demo-api-key` to the workspace, usage ingestion, and reporting requests below. The `GET /healthz`, `GET /readyz`, and `GET /metrics` checks remain unprotected.
+
 ## 2. Check liveness and readiness
 
 ```sh
@@ -153,7 +155,7 @@ docker compose down --volumes --remove-orphans
 
 ## Expected limitations during the walkthrough
 
-- There is no authentication yet, so run the stack only in a trusted local development environment.
+- API key authentication is optional and disabled by default; when enabled, it is a simple local demo mechanism rather than production-grade authorization.
 - The API does not auto-run migrations; apply Alembic before business endpoint calls.
 - Usage ingestion uses caller-supplied carbon intensity values and does not call the carbon intensity provider or Redis cache.
 - Prometheus and Grafana are local-only tools for metrics exploration.

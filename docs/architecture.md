@@ -12,17 +12,18 @@ Implemented scope:
 - Workspace create/list/fetch endpoints.
 - Usage sample ingestion with persisted demo emissions estimates.
 - Summary reporting grouped by workspace, provider, and region.
+- Optional API key authentication for business endpoints.
 - Mockable carbon calculation, carbon intensity client, and Redis cache services.
 - Docker Compose local stack for API, PostgreSQL, Redis, Prometheus, and Grafana.
 - Local quality gate and GitHub Actions CI.
 
-Intentionally excluded today: authentication, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and authoritative carbon accounting factors.
+Intentionally excluded today: OAuth, user accounts, password storage, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and authoritative carbon accounting factors.
 
 ## System context
 
 ```text
 Developer or API caller
-  -> FastAPI app on port 8000
+  -> FastAPI app on port 8000, optionally with X-API-Key for business endpoints
       -> PostgreSQL for workspaces, usage samples, and reporting reads
       -> Redis for carbon intensity cache and readiness checks
       -> optional external carbon intensity provider through a mockable client
@@ -60,7 +61,7 @@ src/carbon_platform_api/
   logging.py                        Standard-library JSON logging formatter/configuration
   metrics.py                        Prometheus registry and HTTP metrics recorders
   main.py                           FastAPI app factory and ASGI app
-  dependencies.py                   FastAPI dependency wiring for sessions/services
+  dependencies.py                   FastAPI dependency wiring for auth, sessions, and services
   cache/carbon_intensity.py         Redis cache protocol/implementation for intensity samples
   cache/health.py                   Redis readiness check protocol/implementation
   clients/carbon_intensity.py       HTTP provider client protocol/implementation
@@ -84,6 +85,7 @@ src/carbon_platform_api/
   schemas/reports.py                Response schemas for summary reports
   schemas/usage_samples.py          Request/response schemas for usage ingestion
   schemas/workspaces.py             Request/response schemas for workspaces
+  services/auth.py                  API key authentication service
   services/carbon_calculations.py   Carbon calculation service and provider protocols
   services/carbon_intensity.py      Cache-first carbon intensity lookup service
   services/metrics.py               Prometheus text rendering service
@@ -107,6 +109,7 @@ create_app(settings)
   -> build SQLAlchemy async engine and session factory
   -> build Redis client
   -> build isolated Prometheus registry
+  -> read API key auth settings for request dependencies
   -> install metrics middleware
   -> install request ID middleware
   -> include health, observability, workspace, and report routers
@@ -125,6 +128,8 @@ Current settings:
 - `environment`
 - `log_level`
 - `docs_enabled`
+- `auth_enabled`
+- `auth_api_keys`
 - `database_url`
 - `redis_url`
 - `carbon_intensity_provider_base_url`
@@ -132,6 +137,25 @@ Current settings:
 - `carbon_intensity_cache_ttl_seconds`
 
 FastAPI documentation and OpenAPI routes are disabled by default. They are only exposed when `CARBON_API_DOCS_ENABLED=true`.
+
+## API key authentication
+
+`ApiKeyAuthService` validates opaque API keys supplied through the `X-API-Key` header. The service depends only on configured settings values, uses constant-time comparisons through the standard library, and does not log API key values.
+
+Authentication is disabled by default for local exploration. When `CARBON_API_AUTH_ENABLED=true`, route-level dependencies require a configured API key before business endpoint handlers run. Missing or invalid keys return `401 Unauthorized` with a generic error.
+
+Protected business endpoints:
+
+```text
+POST /workspaces
+GET /workspaces
+GET /workspaces/{workspace_id}
+POST /workspaces/{workspace_id}/usage-samples
+GET /workspaces/{workspace_id}/reports/summary
+GET /reports/summary
+```
+
+`GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected so liveness checks, dependency readiness checks, and Prometheus scraping can work without credentials. FastAPI docs remain controlled separately by `docs_enabled`.
 
 ## Logging and request correlation
 
@@ -185,7 +209,7 @@ GET /workspaces/{workspace_id}/reports/summary
 GET /reports/summary
 ```
 
-FastAPI docs/OpenAPI routes are disabled by default and are only exposed when `CARBON_API_DOCS_ENABLED=true`.
+FastAPI docs/OpenAPI routes are disabled by default and are only exposed when `CARBON_API_DOCS_ENABLED=true`. Business endpoints require `X-API-Key` when `CARBON_API_AUTH_ENABLED=true`; operational endpoints remain unprotected.
 
 ## Data model
 
@@ -230,17 +254,20 @@ carbon_intensity_samples
 
 ```text
 POST /workspaces
+  -> require_api_key validates X-API-Key when auth is enabled
   -> WorkspaceCreateRequest validates name shape
   -> WorkspaceService strips and validates business uniqueness
   -> WorkspaceRepository reads/writes workspaces table
   -> route returns WorkspaceResponse or 409 Conflict
 
 GET /workspaces
+  -> require_api_key validates X-API-Key when auth is enabled
   -> WorkspaceService lists workspaces
   -> WorkspaceRepository reads workspaces table
   -> route returns list[WorkspaceResponse]
 
 GET /workspaces/{workspace_id}
+  -> require_api_key validates X-API-Key when auth is enabled
   -> WorkspaceService fetches by UUID
   -> WorkspaceRepository reads workspaces table
   -> route returns WorkspaceResponse or 404 Not Found
@@ -252,6 +279,7 @@ Workspace names must be non-blank, at most 120 characters, and unique.
 
 ```text
 POST /workspaces/{workspace_id}/usage-samples
+  -> require_api_key validates X-API-Key when auth is enabled
   -> UsageSampleIngestionRequest validates shape, positive usage, timezone-aware measured_at, and non-negative carbon intensity
   -> UsageIngestionService verifies workspace existence through a workspace lookup protocol
   -> UsageIngestionService calls CarbonCalculationProtocol
@@ -278,6 +306,7 @@ Report request flow:
 
 ```text
 GET /reports/summary or /workspaces/{workspace_id}/reports/summary
+  -> require_api_key validates X-API-Key when auth is enabled
   -> route parses optional start_time/end_time query parameters
   -> ReportingService validates timezone awareness and range order
   -> ReportingService verifies workspace existence for workspace-scoped reports
@@ -377,7 +406,7 @@ GitHub Actions runs the same substantive checks on pull requests and pushes to `
 - Direct carbon intensity lookup is not exposed through HTTP.
 - Redis cache code is implemented but current business endpoints do not use it.
 - Reports are simple aggregates without time buckets, rollups, pagination, or materialized summaries.
-- Authentication and authorization are not implemented yet.
+- API key auth is intentionally simple for portfolio demo use; there is no OAuth, user account model, password storage, key rotation, rate limiting, or role-based authorization.
 - FastAPI docs/OpenAPI routes are disabled by default.
 - Prometheus and Grafana are local-only Compose services.
 - No tracing, hosted monitoring, deployment automation, or secret-management integration is configured.

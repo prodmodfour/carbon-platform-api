@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from carbon_platform_api.dependencies import (
     get_usage_ingestion_service,
     get_workspace_service,
+    require_api_key,
 )
 from carbon_platform_api.schemas.usage_samples import (
     UsageSampleIngestionRequest,
@@ -28,7 +29,11 @@ from carbon_platform_api.services.workspaces import (
     WorkspaceService,
 )
 
-router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+router = APIRouter(
+    prefix="/workspaces",
+    tags=["workspaces"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 @router.post(

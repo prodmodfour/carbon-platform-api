@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from carbon_platform_api.dependencies import get_reporting_service
+from carbon_platform_api.dependencies import get_reporting_service, require_api_key
 from carbon_platform_api.schemas.reports import ReportSummaryResponse
 from carbon_platform_api.services.reporting import (
     InvalidReportTimeRangeError,
@@ -14,7 +14,7 @@ from carbon_platform_api.services.reporting import (
     ReportWorkspaceNotFoundError,
 )
 
-router = APIRouter(tags=["reports"])
+router = APIRouter(tags=["reports"], dependencies=[Depends(require_api_key)])
 
 
 @router.get("/reports/summary", response_model=ReportSummaryResponse)

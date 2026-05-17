@@ -21,7 +21,7 @@ make install
 make run
 ```
 
-The API starts with Uvicorn on `http://127.0.0.1:8000` by default. `GET /healthz` works without external dependencies. `GET /readyz` and business endpoints require configured PostgreSQL and Redis dependencies.
+The API starts with Uvicorn on `http://127.0.0.1:8000` by default. `GET /healthz` works without external dependencies. `GET /readyz` and business endpoints require configured PostgreSQL and Redis dependencies. Business endpoints also require an `X-API-Key` header when `CARBON_API_AUTH_ENABLED=true`.
 
 ## Start the full local Docker stack
 
@@ -106,6 +106,24 @@ curl -i http://127.0.0.1:8000/metrics
 
 The response uses Prometheus text exposition format and includes process metrics plus API HTTP request metrics such as `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds`.
 
+## Optional local API key auth
+
+Authentication is disabled by default. To enable local API key checks for business endpoints, set `CARBON_API_AUTH_ENABLED=true` and configure one or more comma-separated placeholder keys:
+
+```sh
+CARBON_API_AUTH_ENABLED=true CARBON_API_AUTH_API_KEYS=local-demo-api-key make run
+```
+
+Then send the key on workspace, usage ingestion, and reporting requests:
+
+```sh
+curl -i -H 'X-API-Key: local-demo-api-key' http://127.0.0.1:8000/workspaces
+```
+
+Missing or invalid business endpoint keys return `401 Unauthorized` with a generic error. `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected so local health checks and Prometheus scraping do not need credentials.
+
+Use only public-safe local placeholder keys in this repository. Do not commit real secrets or log API key values.
+
 ## Local Prometheus and Grafana checks
 
 Prometheus scrapes `api:8000/metrics` from inside the Docker Compose network. Confirm that Prometheus is healthy:
@@ -131,6 +149,8 @@ python3 -m webbrowser -t http://localhost:3000
 These Grafana values are local placeholders only. Do not reuse them for any real deployment.
 
 ## Workspace endpoint smoke checks
+
+If local auth is enabled, add `-H 'X-API-Key: local-demo-api-key'` to each workspace, usage ingestion, and reporting curl command below.
 
 Create a workspace after migrations are applied:
 
@@ -294,7 +314,7 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative measurements.
 - Usage ingestion uses caller-supplied carbon intensity values and does not call the carbon intensity provider or Redis cache.
 - Direct carbon intensity lookup is not exposed through HTTP.
-- Authentication and authorization are not included yet.
+- API key auth is a simple local demo mechanism only; it does not provide OAuth, user accounts, password storage, key rotation, rate limiting, or authorization roles.
 - Prometheus and Grafana are local-only Compose services for metrics exploration.
 - Grafana uses safe local placeholder credentials by default and is not production-hardened.
 - No tracing integration, hosted monitoring integration, deployment automation, or secret-management integration is configured.

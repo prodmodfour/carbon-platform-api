@@ -496,7 +496,7 @@ Acceptance criteria:
 
 ## T014 — API key auth
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add simple API key authentication suitable for a portfolio API demo.

@@ -14,6 +14,8 @@ services:
       CARBON_API_ENVIRONMENT: ${CARBON_API_ENVIRONMENT:-local}
       CARBON_API_LOG_LEVEL: ${CARBON_API_LOG_LEVEL:-INFO}
       CARBON_API_DOCS_ENABLED: ${CARBON_API_DOCS_ENABLED:-false}
+      CARBON_API_AUTH_ENABLED: ${CARBON_API_AUTH_ENABLED:-false}
+      CARBON_API_AUTH_API_KEYS: ${CARBON_API_AUTH_API_KEYS:-local-demo-api-key}
       CARBON_API_DATABASE_URL: ${CARBON_API_DATABASE_URL:-postgresql+asyncpg://carbon_platform_api:local_dev_password@postgres:5432/carbon_platform_api}
       CARBON_API_REDIS_URL: ${CARBON_API_REDIS_URL:-redis://redis:6379/0}
       CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL: ${CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL:-https://carbon-intensity.example.invalid}

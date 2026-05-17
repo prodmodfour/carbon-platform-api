@@ -10,6 +10,8 @@ _SETTINGS_ENV_VARS = (
     "CARBON_API_ENVIRONMENT",
     "CARBON_API_LOG_LEVEL",
     "CARBON_API_DOCS_ENABLED",
+    "CARBON_API_AUTH_ENABLED",
+    "CARBON_API_AUTH_API_KEYS",
     "CARBON_API_DATABASE_URL",
     "CARBON_API_REDIS_URL",
     "CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL",
@@ -34,6 +36,10 @@ def test_settings_defaults(clean_settings_env: None) -> None:
     assert settings.environment == "local"
     assert settings.log_level == "INFO"
     assert settings.docs_enabled is False
+    assert settings.auth_enabled is False
+    assert settings.auth_api_keys.get_secret_value() == "local-demo-api-key"
+    assert settings.auth_api_key_values == ("local-demo-api-key",)
+    assert "local-demo-api-key" not in repr(settings)
     assert settings.database_url == (
         "postgresql+asyncpg://carbon_platform_api:local_dev_password"
         "@localhost:5432/carbon_platform_api"
@@ -47,6 +53,17 @@ def test_settings_defaults(clean_settings_env: None) -> None:
     assert settings.carbon_intensity_cache_ttl_seconds == 900
 
 
+def test_settings_reject_blank_auth_api_keys(
+    clean_settings_env: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auth API key configuration should not silently accept blank keys."""
+    monkeypatch.setenv("CARBON_API_AUTH_API_KEYS", " , ")
+
+    with pytest.raises(ValueError, match="auth_api_keys"):
+        Settings()
+
+
 def test_settings_environment_overrides(
     clean_settings_env: None,
     monkeypatch: pytest.MonkeyPatch,
@@ -57,6 +74,8 @@ def test_settings_environment_overrides(
     monkeypatch.setenv("CARBON_API_ENVIRONMENT", "test")
     monkeypatch.setenv("CARBON_API_LOG_LEVEL", "debug")
     monkeypatch.setenv("CARBON_API_DOCS_ENABLED", "true")
+    monkeypatch.setenv("CARBON_API_AUTH_ENABLED", "true")
+    monkeypatch.setenv("CARBON_API_AUTH_API_KEYS", " local-test-key , second-key ")
     monkeypatch.setenv(
         "CARBON_API_DATABASE_URL",
         "postgresql+asyncpg://user:pass@db.example.invalid:5432/app",
@@ -76,6 +95,10 @@ def test_settings_environment_overrides(
     assert settings.environment == "test"
     assert settings.log_level == "DEBUG"
     assert settings.docs_enabled is True
+    assert settings.auth_enabled is True
+    assert settings.auth_api_keys.get_secret_value() == "local-test-key,second-key"
+    assert settings.auth_api_key_values == ("local-test-key", "second-key")
+    assert "local-test-key" not in repr(settings)
     assert settings.database_url == (
         "postgresql+asyncpg://user:pass@db.example.invalid:5432/app"
     )

@@ -20,11 +20,12 @@ Current implemented capabilities:
 - Workspace create/list/fetch endpoints.
 - Usage sample ingestion with persisted demo emissions estimates.
 - Summary reporting across all workspaces or one workspace.
+- Optional API key authentication for business endpoints.
 - Mockable carbon intensity HTTP client and Redis cache abstractions.
 - Docker Compose local stack for API, PostgreSQL, Redis, Prometheus, and Grafana.
 - Public-safe GitHub Actions CI for linting, formatting, type checks, tests, migrations, and Compose validation.
 
-Out of scope today: authentication, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and production-grade carbon factors.
+Out of scope today: OAuth, user accounts, password storage, deployment infrastructure, hosted monitoring integrations, tracing, direct HTTP carbon-intensity lookup, and production-grade carbon factors.
 
 ## Requirements
 
@@ -100,6 +101,8 @@ Application settings are loaded from environment variables with the `CARBON_API_
 | `CARBON_API_ENVIRONMENT` | `local` | Runtime environment label. |
 | `CARBON_API_LOG_LEVEL` | `INFO` | Standard library log level for structured JSON logs. |
 | `CARBON_API_DOCS_ENABLED` | `false` | Enables `/docs`, `/redoc`, and `/openapi.json` only when set to `true`. |
+| `CARBON_API_AUTH_ENABLED` | `false` | Enables API key checks on business endpoints when set to `true`. |
+| `CARBON_API_AUTH_API_KEYS` | `local-demo-api-key` | Comma-separated local placeholder API keys accepted through `X-API-Key`; replace for any real environment. |
 | `CARBON_API_DATABASE_URL` | `postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api` | Async SQLAlchemy PostgreSQL URL. |
 | `CARBON_API_REDIS_URL` | `redis://localhost:6379/0` | Redis URL used by cache implementations and readiness checks. |
 | `CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL` | `https://carbon-intensity.example.invalid` | Public-safe placeholder base URL for the carbon intensity provider client. |
@@ -119,14 +122,27 @@ CARBON_API_DOCS_ENABLED=true make run
 | `GET /healthz` | Lightweight liveness check. Returns `{"status":"ok"}` and an `X-Request-ID` header. |
 | `GET /readyz` | Checks PostgreSQL and Redis dependency connectivity. |
 | `GET /metrics` | Returns Prometheus text exposition metrics. |
-| `POST /workspaces` | Creates a workspace with a unique public-safe name. |
-| `GET /workspaces` | Lists workspaces. |
-| `GET /workspaces/{workspace_id}` | Fetches one workspace by UUID. |
-| `POST /workspaces/{workspace_id}/usage-samples` | Ingests one usage sample and stores calculated demo emissions fields. |
-| `GET /workspaces/{workspace_id}/reports/summary` | Returns summary totals for one workspace. |
-| `GET /reports/summary` | Returns summary totals across all workspaces. |
+| `POST /workspaces` | Creates a workspace with a unique public-safe name; requires `X-API-Key` when auth is enabled. |
+| `GET /workspaces` | Lists workspaces; requires `X-API-Key` when auth is enabled. |
+| `GET /workspaces/{workspace_id}` | Fetches one workspace by UUID; requires `X-API-Key` when auth is enabled. |
+| `POST /workspaces/{workspace_id}/usage-samples` | Ingests one usage sample and stores calculated demo emissions fields; requires `X-API-Key` when auth is enabled. |
+| `GET /workspaces/{workspace_id}/reports/summary` | Returns summary totals for one workspace; requires `X-API-Key` when auth is enabled. |
+| `GET /reports/summary` | Returns summary totals across all workspaces; requires `X-API-Key` when auth is enabled. |
 
 If a request supplies `X-Request-ID`, the API propagates it to the response and completion log. Otherwise, the API generates one.
+
+## API key authentication
+
+Authentication is disabled by default for local exploration. Enable simple API key checks for business endpoints with safe local placeholder values:
+
+```sh
+CARBON_API_AUTH_ENABLED=true CARBON_API_AUTH_API_KEYS=local-demo-api-key make run
+curl -i -H 'X-API-Key: local-demo-api-key' http://127.0.0.1:8000/workspaces
+```
+
+When auth is enabled, `POST /workspaces`, `GET /workspaces`, `GET /workspaces/{workspace_id}`, `POST /workspaces/{workspace_id}/usage-samples`, `GET /workspaces/{workspace_id}/reports/summary`, and `GET /reports/summary` require an `X-API-Key` header matching one configured key. Missing or invalid keys return `401 Unauthorized` with a generic error. `GET /healthz`, `GET /readyz`, and `GET /metrics` intentionally remain unprotected so local health checks and Prometheus scraping continue to work.
+
+The default key is a public-safe local placeholder, not a production secret. Do not log API keys, commit real secrets, or reuse the placeholder outside local demos.
 
 ## Database migrations
 
@@ -270,7 +286,7 @@ GitHub Actions runs the `CI` workflow on pull requests and pushes to the default
 - Direct carbon intensity lookup is implemented behind service/client/cache abstractions but is not exposed through HTTP.
 - Redis cache code exists, but current business endpoints do not use it yet.
 - Reporting uses simple aggregate queries only; there are no time buckets, rollups, pagination, or materialized summaries.
-- Authentication and authorization are not included yet.
+- API key authentication is a simple portfolio-demo mechanism only; it does not include OAuth, user accounts, password storage, key rotation, rate limiting, or authorization roles.
 - FastAPI docs/OpenAPI routes are disabled by default.
 - Prometheus and Grafana are local Docker Compose services for metrics exploration only.
 - No hosted monitoring integration, tracing integration, deployment automation, or secret-management integration is configured.

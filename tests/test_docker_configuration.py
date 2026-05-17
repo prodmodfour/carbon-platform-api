@@ -32,6 +32,8 @@ def test_compose_declares_required_services_ports_and_healthchecks() -> None:
     assert '"${POSTGRES_HOST_PORT:-5432}:5432"' in compose
     assert '"${REDIS_HOST_PORT:-6379}:6379"' in compose
     assert "http://127.0.0.1:8000/healthz" in compose
+    assert "CARBON_API_AUTH_ENABLED" in compose
+    assert "CARBON_API_AUTH_API_KEYS" in compose
     assert "CARBON_API_DATABASE_URL" in compose
     assert "pg_isready" in compose
     assert "redis-cli" in compose

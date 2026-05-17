@@ -68,8 +68,9 @@ def test_public_safety_and_limitations_are_visible() -> None:
     runbook = read_project_file("docs/runbook.md")
 
     assert "## Known limitations" in readme
-    assert "Authentication and authorization are not included yet" in readme
+    assert "API key authentication is a simple portfolio-demo mechanism" in readme
     assert "## Current operational limitations" in runbook
+    assert "API key auth is a simple local demo mechanism" in runbook
     assert "Carbon calculation factors" in runbook
 
 
