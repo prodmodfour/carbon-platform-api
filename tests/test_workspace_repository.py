@@ -69,13 +69,20 @@ async def _exercise_workspace_repository(database_url: str) -> None:
             await session.commit()
 
             fetched_workspace = await repository.get(first_workspace.id)
+            fetched_workspace_by_name = await repository.get_by_name("Demo Workspace")
             missing_workspace = await repository.get(uuid4())
+            missing_workspace_by_name = await repository.get_by_name(
+                "Missing Workspace"
+            )
             workspaces = await repository.list()
 
         assert fetched_workspace is not None
         assert fetched_workspace.id == first_workspace.id
         assert fetched_workspace.name == "Demo Workspace"
+        assert fetched_workspace_by_name is not None
+        assert fetched_workspace_by_name.id == first_workspace.id
         assert missing_workspace is None
+        assert missing_workspace_by_name is None
         assert [workspace.id for workspace in workspaces] == [
             second_workspace.id,
             first_workspace.id,

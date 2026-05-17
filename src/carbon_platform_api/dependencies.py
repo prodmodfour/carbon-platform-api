@@ -1,0 +1,33 @@
+"""FastAPI dependency wiring."""
+
+from collections.abc import AsyncIterator
+from typing import Annotated, cast
+
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from carbon_platform_api.repositories.workspaces import WorkspaceRepository
+from carbon_platform_api.services.workspaces import WorkspaceService
+
+
+async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """Yield an async database session with request-scoped transaction handling."""
+    session_factory = cast(
+        async_sessionmaker[AsyncSession],
+        request.app.state.session_factory,
+    )
+
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def get_workspace_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> WorkspaceService:
+    """Build the workspace service for a request."""
+    return WorkspaceService(WorkspaceRepository(session))

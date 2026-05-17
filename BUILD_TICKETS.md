@@ -232,7 +232,7 @@ Acceptance criteria:
 
 ## T005 — Workspace API
 
-Status: TODO
+Status: DONE
 
 Goal:
 Expose workspace CRUD behaviour through HTTP while preserving service/repository boundaries.

@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T004 provides the FastAPI skeleton, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, and initial PostgreSQL persistence. Persistence currently includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository.
+T005 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, initial PostgreSQL persistence, and workspace create/list/fetch endpoints. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository behind a workspace service.
 
-Redis is still infrastructure only. The application intentionally does not include workspace API endpoints, Redis application code, carbon calculations, authentication, metrics, or external API clients yet.
+Redis is still infrastructure only. The application intentionally does not include Redis application code, carbon calculations, usage ingestion, reporting, authentication, metrics, or external API clients yet.
 
 ## Package layout
 
@@ -13,13 +13,17 @@ src/carbon_platform_api/
   config.py                         Pydantic settings loaded from CARBON_API_* variables
   logging.py                        Standard-library JSON logging formatter/configuration
   main.py                           FastAPI app factory and ASGI app
+  dependencies.py                   FastAPI dependency wiring for sessions/services
   db/base.py                        SQLAlchemy declarative base and naming convention
   db/session.py                     Async SQLAlchemy engine/session factory helpers
   middleware/request_id.py          Request ID response header and completion logging
   models/                           SQLAlchemy persistence models
   repositories/workspaces.py        Workspace repository using an async SQLAlchemy session
   routes/health.py                  HTTP route for GET /healthz
+  routes/workspaces.py              HTTP routes for workspace create/list/fetch
   schemas/health.py                 Response schema for the health endpoint
+  schemas/workspaces.py             Request/response schemas for workspace endpoints
+  services/workspaces.py            Workspace business service and repository protocol
 alembic/
   env.py                            Async Alembic migration environment
   versions/                         Database schema migrations
@@ -83,7 +87,9 @@ carbon_intensity_samples
   created_at timestamptz, required
 ```
 
-Only the workspace repository exists in T004. It supports creating, listing, and fetching workspaces using an externally managed async SQLAlchemy session. Route handlers do not perform direct database access.
+The workspace repository supports creating, listing, fetching by ID, and fetching by name using an externally managed async SQLAlchemy session. It returns repository data records rather than leaking SQLAlchemy models to route handlers.
+
+The workspace service depends on a small repository protocol. It normalizes workspace names, validates duplicate names before create, and translates missing workspaces into service-level errors. Route handlers perform HTTP concerns only: request/response schema handling and translating service errors to `409 Conflict` or `404 Not Found`.
 
 ## Local infrastructure
 
@@ -104,7 +110,7 @@ The project follows this dependency direction as features are added:
 routes -> schemas -> services -> repositories/clients -> database/cache/external APIs
 ```
 
-Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. No route handler imports SQLAlchemy or performs persistence work. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
+Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace routes depend on schemas and the workspace service, while FastAPI dependency wiring constructs the concrete async session and repository. No route handler imports SQLAlchemy or performs persistence work. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
 
 ## Automation guardrails
 
@@ -118,5 +124,10 @@ The full quality gate includes two repository safety checks:
 ## API surface
 
 - `GET /healthz` returns a JSON liveness payload and an `X-Request-ID` response header.
+- `POST /workspaces` accepts `{"name":"Demo Workspace"}` and returns the created workspace with `id`, `name`, `created_at`, and `updated_at`.
+- `GET /workspaces` returns a JSON array of workspaces.
+- `GET /workspaces/{workspace_id}` returns one workspace by UUID.
 
-FastAPI documentation and OpenAPI routes are disabled by default so the only default exposed endpoint is `/healthz`.
+Workspace names must be non-blank, at most 120 characters, and unique. Duplicate names return `409 Conflict`; missing workspace IDs return `404 Not Found`.
+
+FastAPI documentation and OpenAPI routes are disabled by default. They are exposed only when `CARBON_API_DOCS_ENABLED=true`.

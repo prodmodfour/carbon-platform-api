@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI skeleton, one liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, and initial PostgreSQL models/migrations with a workspace repository.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, initial PostgreSQL models/migrations, and workspace create/list/fetch endpoints.
 
 ## Public-safety constraints
 
@@ -11,9 +11,12 @@ This repository uses only public-safe sample code and documentation. Do not add 
 ## Current API
 
 - `GET /healthz` returns `{"status": "ok"}` and includes an `X-Request-ID` response header.
+- `POST /workspaces` creates a workspace with a unique name.
+- `GET /workspaces` lists workspaces.
+- `GET /workspaces/{workspace_id}` fetches one workspace by UUID.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-PostgreSQL persistence code currently consists of SQLAlchemy models, Alembic migrations, and a workspace repository. No workspace API endpoints are exposed yet. Redis remains available in the local Docker stack only; the application does not yet contain Redis application code, carbon calculation logic, authentication, metrics, or external API clients.
+Workspace endpoints use SQLAlchemy through a service/repository boundary. Apply Alembic migrations before using them against a real database. Redis remains available in the local Docker stack only; the application does not yet contain Redis application code, carbon calculation logic, authentication, metrics, reporting, usage ingestion, or external API clients.
 
 ## Requirements
 
@@ -54,6 +57,8 @@ Then check the liveness endpoint:
 ```sh
 curl -i http://127.0.0.1:8000/healthz
 ```
+
+Apply database migrations before calling workspace endpoints locally.
 
 ## Run locally with Docker
 
@@ -96,7 +101,7 @@ docker compose down --volumes --remove-orphans
 
 ## Database migrations
 
-Start PostgreSQL, then apply the Alembic schema migration from the host:
+Start PostgreSQL, then apply the Alembic schema migration from the host before using workspace endpoints:
 
 ```sh
 docker compose up --detach postgres
@@ -110,6 +115,31 @@ CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_passw
 ```
 
 The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`.
+
+## Workspace API examples
+
+Create a workspace:
+
+```sh
+curl -i \
+  -X POST http://127.0.0.1:8000/workspaces \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Demo Workspace"}'
+```
+
+List workspaces:
+
+```sh
+curl -i http://127.0.0.1:8000/workspaces
+```
+
+Fetch one workspace, replacing the UUID with a value returned by the create or list call:
+
+```sh
+curl -i http://127.0.0.1:8000/workspaces/00000000-0000-0000-0000-000000000000
+```
+
+Duplicate workspace names return `409 Conflict`. Missing workspace IDs return `404 Not Found`.
 
 ## Development commands
 

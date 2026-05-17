@@ -66,7 +66,7 @@ Start PostgreSQL if it is not already running:
 docker compose up --detach postgres
 ```
 
-Apply the current Alembic schema:
+Apply the current Alembic schema before using workspace endpoints:
 
 ```sh
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic upgrade head
@@ -77,6 +77,31 @@ Roll back all local migrations:
 ```sh
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic downgrade base
 ```
+
+## Workspace endpoint smoke checks
+
+Create a workspace after migrations are applied:
+
+```sh
+curl -i \
+  -X POST http://127.0.0.1:8000/workspaces \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Demo Workspace"}'
+```
+
+List workspaces:
+
+```sh
+curl -i http://127.0.0.1:8000/workspaces
+```
+
+Fetch one workspace by replacing the UUID below with an ID returned by create or list:
+
+```sh
+curl -i http://127.0.0.1:8000/workspaces/00000000-0000-0000-0000-000000000000
+```
+
+Duplicate workspace names should return `409 Conflict`. Unknown workspace IDs should return `404 Not Found`.
 
 ## Docker teardown
 
@@ -121,7 +146,7 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 
 ## Current operational limitations
 
-- PostgreSQL persistence is available through models, migrations, and the workspace repository only; no API endpoint uses it yet.
+- Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run migrations at startup.
 - Redis is available only as local infrastructure; no Redis/cache application code exists yet.
 - No authentication or authorization.
 - No carbon usage ingestion or reporting endpoints.

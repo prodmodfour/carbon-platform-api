@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-TAUTO is complete. The project now has hardened autonomous build-loop guardrails, explicit lowest-numbered ticket selection instructions, public-safety and route-layering checks in the quality gate, tests for those automation checks, and explicit TODO ticket sections for T005 through T016. No application features or new API endpoints were added.
+T005 is complete. The API now exposes workspace create/list/fetch endpoints through FastAPI routes, request/response schemas, a workspace service, FastAPI dependency wiring, and the existing SQLAlchemy-backed workspace repository. Routes preserve the service/repository boundary and translate duplicate names to `409 Conflict` and missing workspaces to `404 Not Found`.
 
 ## Last completed ticket
 
-TAUTO — Automation hardening.
+T005 — Workspace API.
 
 ## Current blockers
 
@@ -55,16 +55,20 @@ None.
 - TAUTO: `uv run python scripts/check-layering.py` — passed.
 - TAUTO: `uv run pytest tests/test_automation_checks.py -q` — passed with 8 tests.
 - TAUTO: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 20 tests and 97% total coverage.
+- T005: `uv run ruff check .` — passed.
+- T005: `uv run ruff format --check .` — passed.
+- T005: `uv run mypy src tests` — passed.
+- T005: `uv run pytest tests/test_workspace_api.py -q` — passed with 3 endpoint tests.
+- T005: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 23 tests and 95% total coverage.
 
 ## Limitations
 
-- Only `GET /healthz` is implemented as a business/API endpoint.
+- Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
-- PostgreSQL persistence currently exists only as models, migrations, async database helpers, and the workspace repository; no API route uses it yet.
 - Redis is available as local Docker infrastructure only; the application does not connect to it yet.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No carbon calculations, external API clients, authentication, metrics endpoint, reporting endpoints, or additional business endpoints are included.
+- No carbon calculations, usage sample ingestion, external API clients, authentication, metrics endpoint, or reporting endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T005 — Workspace API.
+Recommended next ticket: T006 — Carbon calculation service.
