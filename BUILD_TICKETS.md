@@ -202,9 +202,10 @@ Acceptance criteria:
 - Workspace repository can create, list, and fetch workspaces.
 - Repository tests pass.
 - No direct database logic appears in route handlers.
+
 ## Future tickets
 
-The following are intentionally LOCKED for Day 1. Do not implement them yet.
+The following are intentionally LOCKED for later days. Do not implement them yet.
 
 - T005 Workspace API
 - T006 Carbon calculation service
