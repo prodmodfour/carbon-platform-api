@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T009 is complete. The project now includes summary reporting through `GET /workspaces/{workspace_id}/reports/summary` and `GET /reports/summary`, report response schemas, a reporting service, and a read-only reporting repository with aggregate queries grouped by workspace, provider, and region. The service validates time filters and workspace existence while keeping SQLAlchemy aggregation inside the repository boundary.
+T010 is complete. The project now includes production-style observability endpoints: `GET /readyz` checks PostgreSQL and Redis through service-level readiness checks, and `GET /metrics` exposes Prometheus-compatible process and HTTP request metrics. Health remains a lightweight liveness endpoint. Readiness failures are logged as structured JSON with safe dependency/error-type fields only.
 
 ## Last completed ticket
 
-T009 — Reporting endpoints.
+T010 — Observability endpoints.
 
 ## Current blockers
 
@@ -83,6 +83,13 @@ None.
 - T009: `uv run mypy src tests` — passed.
 - T009: `uv run pytest tests/test_reporting_service.py tests/test_reports_api.py -q` — passed with 8 tests.
 - T009: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 66 tests and 94% total coverage.
+- T010: `uv run ruff check .` — passed.
+- T010: `uv run ruff format --check .` — passed.
+- T010: `uv run mypy src tests` — passed.
+- T010: `uv run pytest tests/test_readiness_service.py tests/test_observability_api.py -q` — passed with 7 tests.
+- T010: `uv run python scripts/check-layering.py` — passed.
+- T010: `uv run python scripts/check-no-private-terms.py` — passed.
+- T010: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 73 tests and 95% total coverage.
 
 ## Limitations
 
@@ -91,12 +98,12 @@ None.
 - Usage ingestion requires caller-supplied carbon intensity values; it does not call the carbon intensity provider or Redis cache.
 - Direct carbon intensity lookup is not exposed through HTTP yet.
 - The default carbon intensity provider URL is a public-safe `.invalid` placeholder; tests use fakes and do not depend on a live provider.
-- Redis cache code exists, but no current API endpoint calls it yet.
+- Redis cache code exists, but no current business endpoint calls it yet; readiness pings Redis only for dependency status.
 - Reporting uses simple aggregate queries over persisted usage samples only; it does not provide time buckets, rollups, pagination, or materialized summaries.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No authentication, readiness endpoint, metrics endpoint, or dashboards are included.
+- Metrics are exposed by the API, but no Prometheus server, Grafana dashboard, tracing, or authentication is included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T010 — Observability endpoints.
+Recommended next ticket: T011 — Prometheus and Grafana local stack.

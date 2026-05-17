@@ -58,6 +58,32 @@ Expected response body:
 
 The response includes an `X-Request-ID` header. Supplying `X-Request-ID` on the request propagates the same value to the response and request completion log.
 
+## Readiness check
+
+Use readiness for dependency checks during local operations:
+
+```sh
+curl -i http://127.0.0.1:8000/readyz
+```
+
+A healthy API returns `200 OK` and reports PostgreSQL and Redis as `ok`:
+
+```json
+{"status":"ready","dependencies":[{"name":"database","status":"ok"},{"name":"redis","status":"ok"}]}
+```
+
+If PostgreSQL or Redis is unavailable, the endpoint returns `503 Service Unavailable` and marks that dependency as `error`. Readiness failure logs include the dependency name and exception type, not connection URLs or credentials.
+
+## Metrics check
+
+Prometheus-compatible metrics are available from the API process:
+
+```sh
+curl -i http://127.0.0.1:8000/metrics
+```
+
+The response uses the Prometheus text exposition format and includes process metrics plus API HTTP request metrics such as `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds`.
+
 ## Database migrations
 
 Start PostgreSQL if it is not already running:
@@ -66,7 +92,7 @@ Start PostgreSQL if it is not already running:
 docker compose up --detach postgres
 ```
 
-Apply the current Alembic schema before using workspace or usage ingestion endpoints:
+Apply the current Alembic schema before using workspace, usage ingestion, or reporting endpoints:
 
 ```sh
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic upgrade head
@@ -167,9 +193,9 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 
 ## Current operational limitations
 
-- Workspace and usage ingestion endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run migrations at startup.
+- Workspace, usage ingestion, and reporting endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run migrations at startup.
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative measurements.
 - Usage ingestion uses caller-supplied carbon intensity values and does not call the carbon intensity provider or Redis cache.
 - No authentication or authorization.
-- No reporting endpoints.
-- No metrics endpoint or tracing integration.
+- Metrics are exposed by the API, but no Prometheus or Grafana services are included yet.
+- No tracing integration.

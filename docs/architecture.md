@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T009 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace, usage sample, and reporting repositories, and services behind the HTTP routes.
+T010 provides the FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID and metrics middleware, Docker support for local development, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace, usage sample, and reporting repositories, and services behind the HTTP routes.
 
-The application intentionally does not include authentication, metrics, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
+The application intentionally does not include authentication, dashboards, tracing, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
 
 ## Package layout
 
@@ -12,28 +12,36 @@ The application intentionally does not include authentication, metrics, or HTTP 
 src/carbon_platform_api/
   config.py                         Pydantic settings loaded from CARBON_API_* variables
   logging.py                        Standard-library JSON logging formatter/configuration
+  metrics.py                        Prometheus registry and HTTP metrics recorders
   main.py                           FastAPI app factory and ASGI app
   dependencies.py                   FastAPI dependency wiring for sessions/services
   cache/carbon_intensity.py         Redis cache protocol/implementation for intensity samples
+  cache/health.py                   Redis readiness check protocol/implementation
   clients/carbon_intensity.py       HTTP provider client protocol/implementation
   db/base.py                        SQLAlchemy declarative base and naming convention
+  db/health.py                      PostgreSQL readiness check implementation
   db/session.py                     Async SQLAlchemy engine/session factory helpers
+  middleware/metrics.py             HTTP request metrics middleware
   middleware/request_id.py          Request ID response header and completion logging
   models/                           SQLAlchemy persistence models
   repositories/reports.py           Read-only reporting aggregates using an async SQLAlchemy session
   repositories/usage_samples.py     Usage sample repository using an async SQLAlchemy session
   repositories/workspaces.py        Workspace repository using an async SQLAlchemy session
   routes/health.py                  HTTP route for GET /healthz
+  routes/observability.py           HTTP routes for GET /readyz and GET /metrics
   routes/reports.py                 HTTP routes for summary reports
   routes/workspaces.py              HTTP routes for workspace create/list/fetch and usage ingestion
   schemas/carbon_calculations.py    Calculation input/output schemas and enums
   schemas/carbon_intensity.py       Carbon intensity query/sample value objects
   schemas/health.py                 Response schema for the health endpoint
+  schemas/observability.py          Response schemas for readiness
   schemas/reports.py                Response schemas for summary reports
   schemas/usage_samples.py          Request/response schemas for usage ingestion
   schemas/workspaces.py             Request/response schemas for workspace endpoints
   services/carbon_calculations.py   Carbon calculation service and provider protocols
   services/carbon_intensity.py      Cache-first carbon intensity lookup service
+  services/metrics.py               Prometheus text rendering service
+  services/readiness.py             Dependency readiness coordination service
   services/reporting.py             Report input validation and repository coordination service
   services/usage_ingestion.py       Usage sample validation/calculation/persistence service
   services/workspaces.py            Workspace business service and repository protocol
@@ -72,6 +80,27 @@ FastAPI documentation and OpenAPI routes remain disabled by default. They are on
 - `duration_ms`
 
 The middleware propagates an inbound `X-Request-ID` header when supplied. If no request ID is supplied, it generates one and adds it to the response. The same request ID is included in the completion log.
+
+## Observability endpoints
+
+`GET /healthz` remains a lightweight liveness check that does not touch PostgreSQL or Redis.
+
+`GET /readyz` reports dependency readiness through `ReadinessService`. The route only handles HTTP serialization and status codes; the service coordinates small readiness-check protocols. `DatabaseReadinessCheck` runs a lightweight `SELECT 1` through the application SQLAlchemy engine, and `RedisReadinessCheck` pings the Redis client because Redis application cache code exists. The response shape is deterministic:
+
+```text
+ReadinessResponse
+  status                  ready or not_ready
+  dependencies            database/redis entries with ok or error status
+```
+
+Dependency failures produce `503 Service Unavailable`. The readiness service logs `readiness_dependency_failed` as structured JSON with the dependency name and exception type only, avoiding URLs, credentials, and raw exception details.
+
+`GET /metrics` renders the app's isolated Prometheus registry in text exposition format through `MetricsService`. The registry includes process metrics from `prometheus-client` plus API metrics recorded by `RequestMetricsMiddleware`:
+
+- `carbon_api_http_requests_total`
+- `carbon_api_http_request_duration_seconds`
+
+HTTP metrics are labeled by method, matched route path, and status code. Dynamic route templates are used when available to avoid high-cardinality UUID labels. No Prometheus server, Grafana dashboard, or tracing collector is included yet.
 
 ## Data model
 
@@ -202,7 +231,7 @@ CarbonIntensityService
 
 `HttpCarbonIntensityClient` is the concrete external provider implementation. It performs HTTP `GET /intensity` requests with `region`, `start_time`, and `end_time` query parameters, translates timeouts and provider failures into client-level exceptions, and validates provider JSON into a `CarbonIntensitySample`. Tests inject `httpx.MockTransport`, so no live third-party provider is required.
 
-`RedisCarbonIntensityCache` is the concrete cache implementation. Redis access is limited to a minimal command protocol with `get`, `set`, and `aclose`. Samples are serialized as JSON with Pydantic and stored under deterministic keys with a positive TTL from `CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS`. Only successful provider responses are cached; provider failures and timeouts are propagated and not stored. Invalid cached payloads raise a cache serialization error rather than silently returning incorrect data.
+`RedisCarbonIntensityCache` is the concrete cache implementation. Redis cache access is limited to a minimal command protocol with `get`, `set`, and `aclose`; readiness uses a separate minimal `ping` protocol. Samples are serialized as JSON with Pydantic and stored under deterministic keys with a positive TTL from `CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS`. Only successful provider responses are cached; provider failures and timeouts are propagated and not stored. Invalid cached payloads raise a cache serialization error rather than silently returning incorrect data.
 
 ## Local infrastructure
 
@@ -223,7 +252,7 @@ The project follows this dependency direction as features are added:
 routes -> schemas -> services -> repositories/clients -> database/cache/external APIs
 ```
 
-Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace, usage ingestion, and reporting routes depend on schemas and services, while FastAPI dependency wiring constructs the concrete async session and repositories. External HTTP access is isolated in `clients/`, and Redis access is isolated in `cache/`. No route handler imports SQLAlchemy, performs persistence work, calls external HTTP providers, or talks to Redis. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
+Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace, usage ingestion, reporting, and readiness routes depend on schemas and services, while FastAPI dependency wiring constructs the concrete async session, repositories, readiness checks, and metrics service. External HTTP access is isolated in `clients/`, and Redis access is isolated in `cache/`. No route handler imports SQLAlchemy, performs persistence work, calls external HTTP providers, or talks to Redis. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
 
 ## Automation guardrails
 
@@ -237,6 +266,8 @@ The full quality gate includes two repository safety checks:
 ## API surface
 
 - `GET /healthz` returns a JSON liveness payload and an `X-Request-ID` response header.
+- `GET /readyz` returns dependency readiness for PostgreSQL and Redis.
+- `GET /metrics` returns Prometheus-compatible process and HTTP request metrics.
 - `POST /workspaces` accepts `{"name":"Demo Workspace"}` and returns the created workspace with `id`, `name`, `created_at`, and `updated_at`.
 - `GET /workspaces` returns a JSON array of workspaces.
 - `GET /workspaces/{workspace_id}` returns one workspace by UUID.

@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
 
 ## Public-safety constraints
 
@@ -11,6 +11,8 @@ This repository uses only public-safe sample code and documentation. Do not add 
 ## Current API
 
 - `GET /healthz` returns `{"status": "ok"}` and includes an `X-Request-ID` response header.
+- `GET /readyz` checks PostgreSQL and Redis connectivity and returns `200 OK` when dependencies are ready or `503 Service Unavailable` when one is unhealthy.
+- `GET /metrics` returns Prometheus text exposition metrics, including process metrics and HTTP request counters/histograms.
 - `POST /workspaces` creates a workspace with a unique name.
 - `GET /workspaces` lists workspaces.
 - `GET /workspaces/{workspace_id}` fetches one workspace by UUID.
@@ -19,7 +21,7 @@ This repository uses only public-safe sample code and documentation. Do not add 
 - `GET /reports/summary` returns usage and estimated-emissions totals across all workspaces.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-Workspace, usage ingestion, and reporting endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication or metrics.
+Workspace, usage ingestion, and reporting endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication, dashboards, or tracing.
 
 ## Requirements
 
@@ -65,7 +67,7 @@ Then check the liveness endpoint:
 curl -i http://127.0.0.1:8000/healthz
 ```
 
-Apply database migrations before calling workspace, usage ingestion, or reporting endpoints locally.
+Use `GET /readyz` for dependency readiness and `GET /metrics` for Prometheus-compatible metrics. Apply database migrations before calling workspace, usage ingestion, or reporting endpoints locally.
 
 ## Run locally with Docker
 
@@ -92,9 +94,11 @@ In another terminal, test the API container through the host port:
 
 ```sh
 curl -i http://localhost:8000/healthz
+curl -i http://localhost:8000/readyz
+curl -i http://localhost:8000/metrics
 ```
 
-Expected response body:
+Expected liveness response body:
 
 ```json
 {"status":"ok"}
@@ -121,7 +125,31 @@ To roll back all local migrations:
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic downgrade base
 ```
 
-The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`. It also sets `CARBON_API_REDIS_URL=redis://redis:6379/0` so Redis-backed cache code can use the Compose Redis service when called by future application flows.
+The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`. It also sets `CARBON_API_REDIS_URL=redis://redis:6379/0` so Redis-backed cache and readiness checks can use the Compose Redis service.
+
+## Observability endpoints
+
+Readiness checks PostgreSQL and Redis connectivity without requiring database migrations:
+
+```sh
+curl -i http://127.0.0.1:8000/readyz
+```
+
+Healthy response body:
+
+```json
+{"status":"ready","dependencies":[{"name":"database","status":"ok"},{"name":"redis","status":"ok"}]}
+```
+
+If either dependency is unavailable, `/readyz` returns `503 Service Unavailable` with the same shape and `"error"` for the unhealthy dependency. Readiness failures are logged as structured JSON with the dependency name and exception type only.
+
+Metrics are exposed in Prometheus text format:
+
+```sh
+curl -i http://127.0.0.1:8000/metrics
+```
+
+The output includes Python process metrics plus `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds` labeled by method, route path, and status code. No Prometheus or Grafana services are included yet.
 
 ## Workspace API examples
 

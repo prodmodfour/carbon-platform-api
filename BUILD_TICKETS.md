@@ -383,7 +383,7 @@ Acceptance criteria:
 
 ## T010 — Observability endpoints
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add production-style readiness and metrics endpoints.
