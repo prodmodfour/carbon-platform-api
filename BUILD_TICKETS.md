@@ -412,7 +412,7 @@ Acceptance criteria:
 
 ## T011 — Prometheus and Grafana local stack
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add local observability infrastructure for metrics exploration.

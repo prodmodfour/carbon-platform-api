@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, Redis, Prometheus, and Grafana, PostgreSQL models/migrations, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching.
 
 ## Public-safety constraints
 
@@ -21,7 +21,7 @@ This repository uses only public-safe sample code and documentation. Do not add 
 - `GET /reports/summary` returns usage and estimated-emissions totals across all workspaces.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-Workspace, usage ingestion, and reporting endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication, dashboards, or tracing.
+Workspace, usage ingestion, and reporting endpoints use SQLAlchemy through service/repository boundaries. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is called by usage ingestion. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. Local Prometheus/Grafana support is for metrics exploration only; the application does not yet contain authentication, external hosted monitoring integrations, or tracing.
 
 ## Requirements
 
@@ -84,18 +84,20 @@ docker compose config
 docker compose build
 ```
 
-Start the API, PostgreSQL, and Redis:
+Start the API, PostgreSQL, Redis, Prometheus, and Grafana:
 
 ```sh
 docker compose up
 ```
 
-In another terminal, test the API container through the host port:
+In another terminal, test the local stack through the host ports:
 
 ```sh
 curl -i http://localhost:8000/healthz
 curl -i http://localhost:8000/readyz
 curl -i http://localhost:8000/metrics
+curl -i http://localhost:9090/-/healthy
+curl -i http://localhost:3000/api/health
 ```
 
 Expected liveness response body:
@@ -127,6 +129,24 @@ CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_passw
 
 The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`. It also sets `CARBON_API_REDIS_URL=redis://redis:6379/0` so Redis-backed cache and readiness checks can use the Compose Redis service.
 
+## Local Prometheus and Grafana
+
+Docker Compose includes a local Prometheus service on `http://localhost:9090` and a local Grafana service on `http://localhost:3000`.
+
+Prometheus scrapes the API at `api:8000/metrics` inside the Compose network. After the stack has been running long enough for a scrape, verify the target from the host:
+
+```sh
+curl -i 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22carbon-platform-api%22%7D'
+```
+
+Grafana provisions a Prometheus datasource and the `Carbon Platform API Local Overview` dashboard from files under `observability/grafana/`. Log in with the safe local placeholder values `local_admin` / `local_dev_password` unless overridden in `.env`:
+
+```sh
+python3 -m webbrowser -t http://localhost:3000
+```
+
+These local credentials are placeholders for development only and must not be reused for any real deployment.
+
 ## Observability endpoints
 
 Readiness checks PostgreSQL and Redis connectivity without requiring database migrations:
@@ -149,7 +169,7 @@ Metrics are exposed in Prometheus text format:
 curl -i http://127.0.0.1:8000/metrics
 ```
 
-The output includes Python process metrics plus `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds` labeled by method, route path, and status code. No Prometheus or Grafana services are included yet.
+The output includes Python process metrics plus `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds` labeled by method, route path, and status code. The local Prometheus/Grafana Compose services use this endpoint for exploration only; no external hosted monitoring integration is configured.
 
 ## Workspace API examples
 
@@ -232,7 +252,7 @@ The full project gate is:
 scripts/quality-gate.sh
 ```
 
-When `docker-compose.yml` exists, the quality gate also validates the Compose file with `docker compose config`, starts an isolated PostgreSQL service for Alembic and repository tests, runs `alembic upgrade head`, and removes the test database volume during cleanup. Carbon intensity client tests use fakes and `httpx.MockTransport`; they do not call a live third-party API.
+When `docker-compose.yml` exists, the quality gate also validates the Compose file with `docker compose config`, including the local Prometheus and Grafana services, starts an isolated PostgreSQL service for Alembic and repository tests, runs `alembic upgrade head`, and removes the test database volume during cleanup. Carbon intensity client tests use fakes and `httpx.MockTransport`; they do not call a live third-party API.
 
 The quality gate also runs automation guardrails: shell syntax checks for project scripts, a public-safety term scan (`CARBON_API_PRIVATE_TERMS` may provide a comma-separated custom denylist), and a route-layering check that prevents route modules from importing persistence layers directly.
 

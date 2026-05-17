@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T010 is complete. The project now includes production-style observability endpoints: `GET /readyz` checks PostgreSQL and Redis through service-level readiness checks, and `GET /metrics` exposes Prometheus-compatible process and HTTP request metrics. Health remains a lightweight liveness endpoint. Readiness failures are logged as structured JSON with safe dependency/error-type fields only.
+T011 is complete. The local Docker Compose stack now includes Prometheus and Grafana for metrics exploration. Prometheus scrapes the API's `/metrics` endpoint over the Compose network, and Grafana provisions a local Prometheus datasource plus a public-safe `Carbon Platform API Local Overview` dashboard. Documentation now includes startup, validation, login, and teardown commands with safe local placeholder credentials.
 
 ## Last completed ticket
 
-T010 — Observability endpoints.
+T011 — Prometheus and Grafana local stack.
 
 ## Current blockers
 
@@ -90,6 +90,14 @@ None.
 - T010: `uv run python scripts/check-layering.py` — passed.
 - T010: `uv run python scripts/check-no-private-terms.py` — passed.
 - T010: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 73 tests and 95% total coverage.
+- T011: `docker compose config` — passed with Prometheus and Grafana services.
+- T011: `uv run pytest tests/test_observability_stack_configuration.py tests/test_docker_configuration.py -q` — passed with 7 configuration tests.
+- T011: `uv run ruff check .` — passed.
+- T011: `uv run mypy src tests` — passed.
+- T011: `uv run ruff format --check .` — passed.
+- T011: `uv run python scripts/check-no-private-terms.py` — passed.
+- T011: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 77 tests and 95% total coverage.
+- T011: Docker observability smoke test — passed using an isolated Compose project and alternate host ports; API, Prometheus, and Grafana health checks passed, Prometheus returned `up{job="carbon-platform-api"}=1`, Grafana returned the provisioned dashboard from its API, and the stack was torn down with volumes removed.
 
 ## Limitations
 
@@ -102,8 +110,10 @@ None.
 - Reporting uses simple aggregate queries over persisted usage samples only; it does not provide time buckets, rollups, pagination, or materialized summaries.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- Metrics are exposed by the API, but no Prometheus server, Grafana dashboard, tracing, or authentication is included.
+- Prometheus and Grafana are included only as local Docker Compose services for metrics exploration; no hosted monitoring integration, alerting, or tracing is configured.
+- Grafana uses safe local placeholder credentials by default and is not production-hardened.
+- Authentication is not included yet.
 
 ## Notes for next cycle
 
-Recommended next ticket: T011 — Prometheus and Grafana local stack.
+Recommended next ticket: T012 — GitHub Actions CI.

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Local carbon-platform-api dashboards
+    orgId: 1
+    folder: Carbon Platform API
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

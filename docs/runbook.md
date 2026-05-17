@@ -36,13 +36,13 @@ docker compose config
 docker compose build
 ```
 
-Start the API, PostgreSQL, and Redis:
+Start the API, PostgreSQL, Redis, Prometheus, and Grafana:
 
 ```sh
 docker compose up
 ```
 
-The API is exposed on `http://localhost:8000`, PostgreSQL on `localhost:5432`, and Redis on `localhost:6379`.
+The API is exposed on `http://localhost:8000`, PostgreSQL on `localhost:5432`, Redis on `localhost:6379`, Prometheus on `http://localhost:9090`, and Grafana on `http://localhost:3000`.
 
 ## Health check
 
@@ -83,6 +83,30 @@ curl -i http://127.0.0.1:8000/metrics
 ```
 
 The response uses the Prometheus text exposition format and includes process metrics plus API HTTP request metrics such as `carbon_api_http_requests_total` and `carbon_api_http_request_duration_seconds`.
+
+## Local Prometheus and Grafana checks
+
+Prometheus scrapes `api:8000/metrics` from inside the Docker Compose network. Confirm that Prometheus is healthy:
+
+```sh
+curl -i http://localhost:9090/-/healthy
+```
+
+After one scrape interval, confirm that Prometheus can see the API target:
+
+```sh
+curl -i 'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22carbon-platform-api%22%7D'
+```
+
+The query result should include a sample with value `1` for `job="carbon-platform-api"` when the API is reachable.
+
+Grafana starts with a provisioned Prometheus datasource and the `Carbon Platform API Local Overview` dashboard. Open Grafana and sign in with the safe local placeholder values `local_admin` / `local_dev_password` unless overridden in `.env`:
+
+```sh
+python3 -m webbrowser -t http://localhost:3000
+```
+
+These Grafana values are local placeholders only. Do not reuse them for any real deployment.
 
 ## Database migrations
 
@@ -179,7 +203,7 @@ Run the full gate:
 scripts/quality-gate.sh
 ```
 
-The full gate validates Python checks, runs `docker compose config`, starts an isolated PostgreSQL service, applies Alembic migrations, runs repository integration tests, and removes the quality-gate database volume during cleanup. It also runs public-safety and layering guardrails via `scripts/check-no-private-terms.py` and `scripts/check-layering.py`.
+The full gate validates Python checks, runs `docker compose config` for the full local stack, starts an isolated PostgreSQL service, applies Alembic migrations, runs repository integration tests, and removes the quality-gate database volume during cleanup. It also runs public-safety and layering guardrails via `scripts/check-no-private-terms.py` and `scripts/check-layering.py`.
 
 ## Automation build loop
 
@@ -197,5 +221,6 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative measurements.
 - Usage ingestion uses caller-supplied carbon intensity values and does not call the carbon intensity provider or Redis cache.
 - No authentication or authorization.
-- Metrics are exposed by the API, but no Prometheus or Grafana services are included yet.
+- Prometheus and Grafana are local-only Compose services for metrics exploration; no external hosted monitoring integration is configured.
+- Grafana uses safe local placeholder credentials by default and is not production-hardened.
 - No tracing integration.

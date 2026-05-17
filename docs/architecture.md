@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T010 provides the FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID and metrics middleware, Docker support for local development, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace, usage sample, and reporting repositories, and services behind the HTTP routes.
+T011 provides the FastAPI application, liveness and readiness endpoints, Prometheus-compatible metrics, environment-backed configuration, structured JSON request logging, request ID and metrics middleware, Docker support for local development, a local Prometheus/Grafana metrics exploration stack, PostgreSQL persistence, workspace create/list/fetch endpoints, usage sample ingestion with persisted calculated estimates, summary reporting endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, workspace, usage sample, and reporting repositories, and services behind the HTTP routes.
 
-The application intentionally does not include authentication, dashboards, tracing, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
+The application intentionally does not include authentication, external hosted monitoring integrations, tracing, or HTTP endpoints for direct carbon intensity lookup. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but usage ingestion currently uses caller-supplied carbon intensity values rather than calling the provider.
 
 ## Package layout
 
@@ -100,7 +100,7 @@ Dependency failures produce `503 Service Unavailable`. The readiness service log
 - `carbon_api_http_requests_total`
 - `carbon_api_http_request_duration_seconds`
 
-HTTP metrics are labeled by method, matched route path, and status code. Dynamic route templates are used when available to avoid high-cardinality UUID labels. No Prometheus server, Grafana dashboard, or tracing collector is included yet.
+HTTP metrics are labeled by method, matched route path, and status code. Dynamic route templates are used when available to avoid high-cardinality UUID labels. Docker Compose includes local Prometheus and Grafana services for metrics exploration, but no external hosted monitoring integration or tracing collector is configured.
 
 ## Data model
 
@@ -240,9 +240,14 @@ docker-compose.yml
   api                  FastAPI/Uvicorn container exposed on host port 8000
   postgres             PostgreSQL container exposed on host port 5432
   redis                Redis container exposed on host port 6379
+  prometheus           Prometheus server exposed on host port 9090
+  grafana              Grafana server exposed on host port 3000
+observability/
+  prometheus/          Local Prometheus scrape configuration for api:8000/metrics
+  grafana/             Local datasource, dashboard provider, and dashboard JSON files
 ```
 
-The API container runs as a non-root user and has a container health check that calls `GET /healthz`. PostgreSQL and Redis have image-native health checks. Alembic migrations use `CARBON_API_DATABASE_URL`. Redis-backed cache code uses `CARBON_API_REDIS_URL` and defaults to `redis://redis:6379/0` in Docker Compose.
+The API container runs as a non-root user and has a container health check that calls `GET /healthz`. PostgreSQL and Redis have image-native health checks. Alembic migrations use `CARBON_API_DATABASE_URL`. Redis-backed cache code uses `CARBON_API_REDIS_URL` and defaults to `redis://redis:6379/0` in Docker Compose. Prometheus scrapes the API metrics endpoint over the Compose network at `api:8000/metrics`. Grafana provisions the local Prometheus datasource and the `Carbon Platform API Local Overview` dashboard from repository files. Grafana's default user/password values are safe local placeholders only and are not production credentials.
 
 ## Dependency direction
 
