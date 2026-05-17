@@ -104,7 +104,16 @@ The project follows this dependency direction as features are added:
 routes -> schemas -> services -> repositories/clients -> database/cache/external APIs
 ```
 
-Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. No route handler imports SQLAlchemy or performs persistence work.
+Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. No route handler imports SQLAlchemy or performs persistence work. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
+
+## Automation guardrails
+
+The full quality gate includes two repository safety checks:
+
+- `scripts/check-no-private-terms.py` scans repository text files for obvious private markers, non-public hostnames, and secret-like tokens. `CARBON_API_PRIVATE_TERMS` can add a comma-separated custom denylist.
+- `scripts/check-layering.py` enforces the route-to-service boundary described above.
+
+`scripts/build-loop.sh` requires the agent prompt to select the lowest-numbered TODO or IN_PROGRESS ticket and performs clean-tree/upstream checks before each autonomous cycle.
 
 ## API surface
 

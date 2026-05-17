@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T004 is complete. The API now has async SQLAlchemy/PostgreSQL persistence foundations, Alembic migrations, three initial data models (`workspaces`, `usage_samples`, and `carbon_intensity_samples`), and a workspace repository that can create, list, and fetch workspaces. No workspace API endpoints were added.
+TAUTO is complete. The project now has hardened autonomous build-loop guardrails, explicit lowest-numbered ticket selection instructions, public-safety and route-layering checks in the quality gate, tests for those automation checks, and explicit TODO ticket sections for T005 through T016. No application features or new API endpoints were added.
 
 ## Last completed ticket
 
-T004 — Database models and migrations.
+TAUTO — Automation hardening.
 
 ## Current blockers
 
@@ -48,6 +48,13 @@ None.
 - T004: `uv run ruff format --check .` — passed.
 - T004: `uv run mypy src tests` — passed.
 - T004: `scripts/quality-gate.sh` — passed with Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 12 tests and 97% total coverage.
+- TAUTO: `uv run ruff check .` — passed.
+- TAUTO: `uv run ruff format --check .` — passed after formatting the new automation scripts.
+- TAUTO: `uv run mypy src tests` — passed.
+- TAUTO: `uv run python scripts/check-no-private-terms.py` — passed.
+- TAUTO: `uv run python scripts/check-layering.py` — passed.
+- TAUTO: `uv run pytest tests/test_automation_checks.py -q` — passed with 8 tests.
+- TAUTO: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 20 tests and 97% total coverage.
 
 ## Limitations
 
@@ -55,8 +62,9 @@ None.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - PostgreSQL persistence currently exists only as models, migrations, async database helpers, and the workspace repository; no API route uses it yet.
 - Redis is available as local Docker infrastructure only; the application does not connect to it yet.
+- Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
 - No carbon calculations, external API clients, authentication, metrics endpoint, reporting endpoints, or additional business endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T005 Workspace API, if it is unlocked in `BUILD_TICKETS.md`.
+Recommended next ticket: T005 — Workspace API.

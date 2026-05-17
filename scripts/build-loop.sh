@@ -9,7 +9,7 @@ Runs fresh pi build cycles for carbon-platform-api.
 
 Each cycle:
 - reads AGENTS.md, BUILD_TICKETS.md, and BUILD_NOTES.md
-- selects exactly one TODO/IN_PROGRESS ticket
+- selects the lowest-numbered TODO/IN_PROGRESS ticket
 - implements only that ticket
 - runs quality gates
 - updates BUILD_NOTES.md and BUILD_TICKETS.md
@@ -20,17 +20,20 @@ Options:
   --max-cycles N      Number of cycles to run. Default: 1.
   --sleep SECONDS     Pause between successful cycles. Default: 0.
   --push              Push after each successful cycle.
+  --allow-ahead       Allow starting a cycle when the branch is already ahead of upstream.
   -h, --help          Show this help.
 
 Environment:
-  PI_BUILD_MODEL       Passes --model to pi
-  PI_BUILD_THINKING    Passes --thinking to pi
+  PI_BUILD_MODEL        Passes --model to pi
+  PI_BUILD_THINKING     Passes --thinking to pi
+  PI_BUILD_ALLOW_AHEAD  Set to 1 to allow starting while ahead of upstream
 USAGE
 }
 
 MAX_CYCLES=1
 SLEEP_SECONDS=0
 PUSH_AFTER=0
+ALLOW_AHEAD=${PI_BUILD_ALLOW_AHEAD:-0}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -48,6 +51,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --push)
       PUSH_AFTER=1
+      shift
+      ;;
+    --allow-ahead)
+      ALLOW_AHEAD=1
       shift
       ;;
     *)
@@ -68,6 +75,11 @@ if ! [[ "$SLEEP_SECONDS" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
+if [[ "$ALLOW_AHEAD" != "0" && "$ALLOW_AHEAD" != "1" ]]; then
+  echo "PI_BUILD_ALLOW_AHEAD must be 0 or 1 when set" >&2
+  exit 2
+fi
+
 REQUIRED_FILES=(AGENTS.md BUILD_TICKETS.md BUILD_NOTES.md scripts/quality-gate.sh)
 LOG_DIR='.pi/logs/build-loop'
 LOCK_DIR='.pi/build-loop.lock'
@@ -78,7 +90,7 @@ You are continuing the build of carbon-platform-api.
 Read AGENTS.md, BUILD_TICKETS.md, and BUILD_NOTES.md.
 
 Your task in this run:
-- Select exactly one TODO or IN_PROGRESS ticket from BUILD_TICKETS.md.
+- Select the lowest-numbered TODO or IN_PROGRESS ticket from BUILD_TICKETS.md.
 - Implement only that ticket.
 - Do not start future tickets.
 - Do not broaden scope.
@@ -121,6 +133,66 @@ require_clean_tree() {
   fi
 }
 
+get_upstream_ref() {
+  git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true
+}
+
+sync_before_cycle() {
+  local upstream_ref
+  local counts
+  local behind_count
+  local ahead_count
+
+  require_clean_tree
+
+  upstream_ref="$(get_upstream_ref)"
+  CYCLE_UPSTREAM_REF="$upstream_ref"
+  CYCLE_UPSTREAM_HEAD=""
+
+  if [[ -z "$upstream_ref" ]]; then
+    echo "No upstream configured; skipping remote sync checks."
+    return 0
+  fi
+
+  git pull --ff-only
+  require_clean_tree
+
+  CYCLE_UPSTREAM_HEAD="$(git rev-parse "$upstream_ref")"
+  counts="$(git rev-list --left-right --count "${upstream_ref}...HEAD")"
+  read -r behind_count ahead_count <<< "$counts"
+
+  if (( behind_count > 0 )); then
+    echo "Branch is behind upstream after git pull --ff-only; refusing to start." >&2
+    exit 1
+  fi
+
+  if (( ahead_count > 0 && ALLOW_AHEAD != 1 )); then
+    echo "Branch is ahead of upstream by ${ahead_count} commit(s); refusing to start." >&2
+    echo "Push first, or rerun with --allow-ahead / PI_BUILD_ALLOW_AHEAD=1." >&2
+    exit 1
+  fi
+}
+
+refuse_if_remote_advanced() {
+  local upstream_ref="$1"
+  local expected_upstream_head="$2"
+  local current_upstream_head
+
+  if [[ -z "$upstream_ref" || -z "$expected_upstream_head" ]]; then
+    return 0
+  fi
+
+  git fetch --quiet
+  current_upstream_head="$(git rev-parse "$upstream_ref")"
+
+  if [[ "$current_upstream_head" != "$expected_upstream_head" ]]; then
+    echo "Upstream $upstream_ref advanced during the cycle; refusing to continue." >&2
+    echo "Expected upstream: $expected_upstream_head" >&2
+    echo "Current upstream:  $current_upstream_head" >&2
+    exit 1
+  fi
+}
+
 acquire_lock() {
   mkdir -p "$(dirname "$LOCK_DIR")" "$LOG_DIR"
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -154,7 +226,7 @@ while (( cycle < MAX_CYCLES )); do
   cycle=$((cycle + 1))
   echo "=== pi build cycle $cycle/$MAX_CYCLES ==="
 
-  require_clean_tree
+  sync_before_cycle
 
   before_head="$(git rev-parse HEAD)"
   log_file="$LOG_DIR/cycle-$(date +%Y%m%d-%H%M%S)-$cycle.log"
@@ -179,6 +251,8 @@ while (( cycle < MAX_CYCLES )); do
     git status --short >&2
     exit 1
   fi
+
+  refuse_if_remote_advanced "$CYCLE_UPSTREAM_REF" "$CYCLE_UPSTREAM_HEAD"
 
   after_head="$(git rev-parse HEAD)"
   if [[ "$after_head" == "$before_head" ]]; then

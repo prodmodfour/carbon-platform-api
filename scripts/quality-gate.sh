@@ -14,6 +14,14 @@ run_tool() {
   fi
 }
 
+run_python_script() {
+  if command -v uv >/dev/null 2>&1; then
+    uv run python "$@"
+  else
+    python "$@"
+  fi
+}
+
 COMPOSE_PROJECT_NAME=${CARBON_API_QUALITY_GATE_COMPOSE_PROJECT_NAME:-carbon-platform-api-quality-gate}
 POSTGRES_DB=carbon_platform_api
 POSTGRES_USER=carbon_platform_api
@@ -46,6 +54,10 @@ start_postgres() {
   return 1
 }
 
+bash -n scripts/build-loop.sh
+bash -n scripts/quality-gate.sh
+run_python_script scripts/check-no-private-terms.py
+run_python_script scripts/check-layering.py
 run_tool ruff check .
 run_tool ruff format --check .
 run_tool mypy src tests

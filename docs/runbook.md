@@ -107,7 +107,17 @@ Run the full gate:
 scripts/quality-gate.sh
 ```
 
-The full gate validates Python checks, runs `docker compose config`, starts an isolated PostgreSQL service, applies Alembic migrations, runs repository integration tests, and removes the quality-gate database volume during cleanup.
+The full gate validates Python checks, runs `docker compose config`, starts an isolated PostgreSQL service, applies Alembic migrations, runs repository integration tests, and removes the quality-gate database volume during cleanup. It also runs public-safety and layering guardrails via `scripts/check-no-private-terms.py` and `scripts/check-layering.py`.
+
+## Automation build loop
+
+Use the build loop only from a clean working tree:
+
+```sh
+scripts/build-loop.sh --max-cycles 1
+```
+
+When an upstream branch exists, the loop runs `git pull --ff-only` before each cycle. It refuses to start while the branch is already ahead of upstream unless `--allow-ahead` or `PI_BUILD_ALLOW_AHEAD=1` is set, and it stops before push/continuation if the upstream advances during a cycle.
 
 ## Current operational limitations
 

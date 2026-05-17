@@ -64,7 +64,7 @@ Automation behaviour
 When invoked by scripts/build-loop.sh:
 
 1. Read AGENTS.md, BUILD_TICKETS.md, and BUILD_NOTES.md.
-2. Select the next incomplete ticket.
+2. Select the lowest-numbered TODO or IN_PROGRESS ticket.
 3. Implement exactly one bounded ticket.
 4. Add or update tests.
 5. Run quality gates.
