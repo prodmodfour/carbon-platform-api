@@ -11,6 +11,10 @@ _SETTINGS_ENV_VARS = (
     "CARBON_API_LOG_LEVEL",
     "CARBON_API_DOCS_ENABLED",
     "CARBON_API_DATABASE_URL",
+    "CARBON_API_REDIS_URL",
+    "CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL",
+    "CARBON_API_CARBON_INTENSITY_PROVIDER_TIMEOUT_SECONDS",
+    "CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS",
 )
 
 
@@ -34,6 +38,13 @@ def test_settings_defaults(clean_settings_env: None) -> None:
         "postgresql+asyncpg://carbon_platform_api:local_dev_password"
         "@localhost:5432/carbon_platform_api"
     )
+    assert settings.redis_url == "redis://localhost:6379/0"
+    assert (
+        settings.carbon_intensity_provider_base_url
+        == "https://carbon-intensity.example.invalid"
+    )
+    assert settings.carbon_intensity_provider_timeout_seconds == 2.0
+    assert settings.carbon_intensity_cache_ttl_seconds == 900
 
 
 def test_settings_environment_overrides(
@@ -50,6 +61,13 @@ def test_settings_environment_overrides(
         "CARBON_API_DATABASE_URL",
         "postgresql+asyncpg://user:pass@db.example.invalid:5432/app",
     )
+    monkeypatch.setenv("CARBON_API_REDIS_URL", "redis://cache.example.invalid:6379/1")
+    monkeypatch.setenv(
+        "CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL",
+        " https://provider.example.invalid/v1 ",
+    )
+    monkeypatch.setenv("CARBON_API_CARBON_INTENSITY_PROVIDER_TIMEOUT_SECONDS", "4.5")
+    monkeypatch.setenv("CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS", "123")
 
     settings = Settings()
 
@@ -61,3 +79,10 @@ def test_settings_environment_overrides(
     assert settings.database_url == (
         "postgresql+asyncpg://user:pass@db.example.invalid:5432/app"
     )
+    assert settings.redis_url == "redis://cache.example.invalid:6379/1"
+    assert (
+        settings.carbon_intensity_provider_base_url
+        == "https://provider.example.invalid/v1"
+    )
+    assert settings.carbon_intensity_provider_timeout_seconds == 4.5
+    assert settings.carbon_intensity_cache_ttl_seconds == 123

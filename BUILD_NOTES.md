@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T006 is complete. The project now includes deterministic carbon calculation schemas/enums and a calculation service with injectable energy factor and usage-unit conversion protocols. The default implementation uses documented public-safe demo factors for `vcpu`, `memory`, `storage`, and `network`, performs Decimal-based unit conversion and rounding, and remains unexposed by HTTP endpoints.
+T007 is complete. The project now includes a mockable carbon intensity provider client, carbon intensity query/sample schemas, a Redis-backed cache abstraction/implementation, and a cache-first carbon intensity service. Provider HTTP calls are isolated in `clients/`, Redis access is isolated in `cache/`, and tests use fakes plus `httpx.MockTransport` instead of a live third-party API.
 
 ## Last completed ticket
 
-T006 — Carbon calculation service.
+T007 — Carbon intensity client with Redis cache.
 
 ## Current blockers
 
@@ -65,17 +65,23 @@ None.
 - T006: `uv run ruff format --check .` — passed.
 - T006: `uv run mypy src tests` — passed.
 - T006: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 39 tests and 95% total coverage.
+- T007: `uv run pytest tests/test_config.py tests/test_carbon_intensity.py -q` — passed with 11 tests.
+- T007: `uv run ruff check .` — passed.
+- T007: `uv run ruff format --check .` — passed.
+- T007: `uv run mypy src tests` — passed.
+- T007: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 48 tests and 92% total coverage.
 
 ## Limitations
 
 - Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative energy or emissions measurements.
-- The carbon calculation service is not exposed through HTTP and does not fetch external carbon intensity data.
+- Carbon calculation and carbon intensity lookup services are not exposed through HTTP endpoints yet.
+- The default carbon intensity provider URL is a public-safe `.invalid` placeholder; tests use fakes and do not depend on a live provider.
+- Redis cache code exists, but no current API endpoint calls it until usage ingestion/reporting flows are added.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
-- Redis is available as local Docker infrastructure only; the application does not connect to it yet.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No usage sample ingestion, external API clients, authentication, metrics endpoint, or reporting endpoints are included.
+- No usage sample ingestion, authentication, metrics endpoint, or reporting endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T007 — Carbon intensity client with Redis cache.
+Recommended next ticket: T008 — Usage sample ingestion.

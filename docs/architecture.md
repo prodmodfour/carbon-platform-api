@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T006 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, initial PostgreSQL persistence, workspace create/list/fetch endpoints, and a deterministic carbon calculation service. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository behind a workspace service.
+T007 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, initial PostgreSQL persistence, workspace create/list/fetch endpoints, a deterministic carbon calculation service, and a mockable carbon intensity provider client with Redis-backed caching. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository behind a workspace service.
 
-Redis is still infrastructure only. The application intentionally does not include Redis application code, usage ingestion, reporting, authentication, metrics, or external API clients yet. The carbon calculation service is available to application services but is not exposed through an HTTP endpoint yet.
+The application intentionally does not include usage ingestion, reporting, authentication, metrics, or HTTP endpoints for carbon calculation/carbon intensity yet. Carbon intensity provider access and Redis cache access are available to services through protocols and concrete implementations, but no route currently calls them.
 
 ## Package layout
 
@@ -14,6 +14,8 @@ src/carbon_platform_api/
   logging.py                        Standard-library JSON logging formatter/configuration
   main.py                           FastAPI app factory and ASGI app
   dependencies.py                   FastAPI dependency wiring for sessions/services
+  cache/carbon_intensity.py         Redis cache protocol/implementation for intensity samples
+  clients/carbon_intensity.py       HTTP provider client protocol/implementation
   db/base.py                        SQLAlchemy declarative base and naming convention
   db/session.py                     Async SQLAlchemy engine/session factory helpers
   middleware/request_id.py          Request ID response header and completion logging
@@ -22,9 +24,11 @@ src/carbon_platform_api/
   routes/health.py                  HTTP route for GET /healthz
   routes/workspaces.py              HTTP routes for workspace create/list/fetch
   schemas/carbon_calculations.py    Calculation input/output schemas and enums
+  schemas/carbon_intensity.py       Carbon intensity query/sample value objects
   schemas/health.py                 Response schema for the health endpoint
   schemas/workspaces.py             Request/response schemas for workspace endpoints
   services/carbon_calculations.py   Carbon calculation service and provider protocols
+  services/carbon_intensity.py      Cache-first carbon intensity lookup service
   services/workspaces.py            Workspace business service and repository protocol
 alembic/
   env.py                            Async Alembic migration environment
@@ -43,8 +47,12 @@ Current settings:
 - `log_level`
 - `docs_enabled`
 - `database_url`
+- `redis_url`
+- `carbon_intensity_provider_base_url`
+- `carbon_intensity_provider_timeout_seconds`
+- `carbon_intensity_cache_ttl_seconds`
 
-FastAPI documentation and OpenAPI routes remain disabled by default. They are only exposed when `CARBON_API_DOCS_ENABLED=true`.
+FastAPI documentation and OpenAPI routes remain disabled by default. They are only exposed when `CARBON_API_DOCS_ENABLED=true`. The default carbon intensity provider URL uses the reserved `.invalid` top-level domain so local development and tests do not accidentally depend on a live provider.
 
 ## Logging and request correlation
 
@@ -118,7 +126,23 @@ The default providers use deliberately simple public-safe demo factors:
 
 Supported demo unit conversions include `vcpu_minute` to `vcpu_hour`, `gb_minute` to `gb_hour`, `tb_month` to `gb_month`, and `mb`/`tb` to `gb`. These factors and conversions are sample values for deterministic portfolio behaviour only; they are not authoritative energy or emissions measurements.
 
-Extension points are intentionally small. Future factor sources can implement `EnergyFactorProviderProtocol`, which receives resource type and region, and future unit conversion strategies can implement `UsageUnitConverterProtocol`, without changing route handlers, repositories, or the core calculation formula. The default demo factors are region-independent. The service accepts carbon intensity as an input value in grams CO2e/kWh and does not fetch external carbon intensity data or use Redis.
+Extension points are intentionally small. Future factor sources can implement `EnergyFactorProviderProtocol`, which receives resource type and region, and future unit conversion strategies can implement `UsageUnitConverterProtocol`, without changing route handlers, repositories, or the core calculation formula. The default demo factors are region-independent. The service accepts carbon intensity as an input value in grams CO2e/kWh. Fetching carbon intensity values is a separate cache-first service described below.
+
+## Carbon intensity client/cache flow
+
+`carbon_platform_api.schemas.carbon_intensity` defines timezone-aware lookup windows and carbon intensity samples. `CarbonIntensityService` depends only on two small protocols:
+
+```text
+CarbonIntensityService
+  -> CarbonIntensityCacheProtocol.get(query)
+  -> return cached sample on hit
+  -> CarbonIntensityClientProtocol.fetch_intensity(query) on miss
+  -> CarbonIntensityCacheProtocol.set(query, sample, ttl) after successful provider response
+```
+
+`HttpCarbonIntensityClient` is the concrete external provider implementation. It performs HTTP `GET /intensity` requests with `region`, `start_time`, and `end_time` query parameters, translates timeouts and provider failures into client-level exceptions, and validates provider JSON into a `CarbonIntensitySample`. Tests inject `httpx.MockTransport`, so no live third-party provider is required.
+
+`RedisCarbonIntensityCache` is the concrete cache implementation. Redis access is limited to a minimal command protocol with `get`, `set`, and `aclose`. Samples are serialized as JSON with Pydantic and stored under deterministic keys with a positive TTL from `CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS`. Only successful provider responses are cached; provider failures and timeouts are propagated and not stored. Invalid cached payloads raise a cache serialization error rather than silently returning incorrect data.
 
 ## Local infrastructure
 
@@ -129,7 +153,7 @@ docker-compose.yml
   redis                Redis container exposed on host port 6379
 ```
 
-The API container runs as a non-root user and has a container health check that calls `GET /healthz`. PostgreSQL and Redis have image-native health checks. Alembic migrations use `CARBON_API_DATABASE_URL`.
+The API container runs as a non-root user and has a container health check that calls `GET /healthz`. PostgreSQL and Redis have image-native health checks. Alembic migrations use `CARBON_API_DATABASE_URL`. Redis-backed cache code uses `CARBON_API_REDIS_URL` and defaults to `redis://redis:6379/0` in Docker Compose.
 
 ## Dependency direction
 
@@ -139,7 +163,7 @@ The project follows this dependency direction as features are added:
 routes -> schemas -> services -> repositories/clients -> database/cache/external APIs
 ```
 
-Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace routes depend on schemas and the workspace service, while FastAPI dependency wiring constructs the concrete async session and repository. No route handler imports SQLAlchemy or performs persistence work. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
+Current persistence follows that boundary by keeping SQLAlchemy access inside repositories and database helper modules. Workspace routes depend on schemas and the workspace service, while FastAPI dependency wiring constructs the concrete async session and repository. External HTTP access is isolated in `clients/`, and Redis access is isolated in `cache/`. No route handler imports SQLAlchemy, performs persistence work, calls external HTTP providers, or talks to Redis. `scripts/check-layering.py` is part of the quality gate and fails if route modules import SQLAlchemy, Alembic, database/session modules, models, or repositories directly.
 
 ## Automation guardrails
 
@@ -159,6 +183,6 @@ The full quality gate includes two repository safety checks:
 
 Workspace names must be non-blank, at most 120 characters, and unique. Duplicate names return `409 Conflict`; missing workspace IDs return `404 Not Found`.
 
-No HTTP endpoint exposes carbon calculation yet; the service is available for future usage ingestion work.
+No HTTP endpoint exposes carbon calculation or carbon intensity lookup yet; the services are available for future usage ingestion work.
 
 FastAPI documentation and OpenAPI routes are disabled by default. They are exposed only when `CARBON_API_DOCS_ENABLED=true`.

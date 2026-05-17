@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, initial PostgreSQL models/migrations, workspace create/list/fetch endpoints, and a deterministic carbon calculation service for future usage ingestion.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, initial PostgreSQL models/migrations, workspace create/list/fetch endpoints, a deterministic carbon calculation service for future usage ingestion, and a mockable carbon intensity provider client with Redis-backed caching.
 
 ## Public-safety constraints
 
@@ -16,7 +16,7 @@ This repository uses only public-safe sample code and documentation. Do not add 
 - `GET /workspaces/{workspace_id}` fetches one workspace by UUID.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-Workspace endpoints use SQLAlchemy through a service/repository boundary. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is not exposed through an HTTP endpoint yet. Redis remains available in the local Docker stack only; the application does not yet contain Redis application code, authentication, metrics, reporting, usage ingestion, or external API clients.
+Workspace endpoints use SQLAlchemy through a service/repository boundary. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is not exposed through an HTTP endpoint yet. Carbon intensity provider calls and Redis access are isolated behind client/cache abstractions and are not exposed through HTTP endpoints yet. The application does not yet contain authentication, metrics, reporting, or usage ingestion.
 
 ## Requirements
 
@@ -43,6 +43,10 @@ Application settings are loaded from environment variables with the `CARBON_API_
 | `CARBON_API_LOG_LEVEL` | `INFO` | Standard library log level for structured JSON logs. |
 | `CARBON_API_DOCS_ENABLED` | `false` | Enables `/docs`, `/redoc`, and `/openapi.json` only when set to `true`. |
 | `CARBON_API_DATABASE_URL` | `postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api` | Async SQLAlchemy database URL for PostgreSQL. |
+| `CARBON_API_REDIS_URL` | `redis://localhost:6379/0` | Redis URL used by cache implementations. Docker Compose sets this to `redis://redis:6379/0` for the API container. |
+| `CARBON_API_CARBON_INTENSITY_PROVIDER_BASE_URL` | `https://carbon-intensity.example.invalid` | Public-safe placeholder base URL for the carbon intensity provider client. |
+| `CARBON_API_CARBON_INTENSITY_PROVIDER_TIMEOUT_SECONDS` | `2.0` | Timeout, in seconds, for carbon intensity provider HTTP calls. |
+| `CARBON_API_CARBON_INTENSITY_CACHE_TTL_SECONDS` | `900` | Redis cache TTL, in seconds, for successful carbon intensity provider responses. |
 
 FastAPI docs and OpenAPI routes are disabled by default.
 
@@ -114,7 +118,7 @@ To roll back all local migrations:
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic downgrade base
 ```
 
-The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`.
+The Docker Compose API container uses the same safe local placeholder credentials with the Compose service hostname `postgres`. It also sets `CARBON_API_REDIS_URL=redis://redis:6379/0` so Redis-backed cache code can use the Compose Redis service when called by future application flows.
 
 ## Workspace API examples
 
@@ -158,7 +162,7 @@ The full project gate is:
 scripts/quality-gate.sh
 ```
 
-When `docker-compose.yml` exists, the quality gate also validates the Compose file with `docker compose config`, starts an isolated PostgreSQL service for Alembic and repository tests, runs `alembic upgrade head`, and removes the test database volume during cleanup.
+When `docker-compose.yml` exists, the quality gate also validates the Compose file with `docker compose config`, starts an isolated PostgreSQL service for Alembic and repository tests, runs `alembic upgrade head`, and removes the test database volume during cleanup. Carbon intensity client tests use fakes and `httpx.MockTransport`; they do not call a live third-party API.
 
 The quality gate also runs automation guardrails: shell syntax checks for project scripts, a public-safety term scan (`CARBON_API_PRIVATE_TERMS` may provide a comma-separated custom denylist), and a route-layering check that prevents route modules from importing persistence layers directly.
 

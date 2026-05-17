@@ -295,7 +295,7 @@ Acceptance criteria:
 
 ## T007 — Carbon intensity client with Redis cache
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add a mockable carbon intensity client and Redis-backed cache layer.
