@@ -324,7 +324,7 @@ Acceptance criteria:
 
 ## T008 — Usage sample ingestion
 
-Status: TODO
+Status: DONE
 
 Goal:
 Allow clients to ingest compute usage samples and persist calculated carbon estimates.

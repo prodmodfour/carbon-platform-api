@@ -38,6 +38,24 @@ class UsageSample(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+    normalized_usage_amount: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6),
+        nullable=False,
+    )
+    normalized_usage_unit: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+    )
+    energy_kwh: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    carbon_intensity_grams_co2e_per_kwh: Mapped[Decimal] = mapped_column(
+        Numeric(12, 4),
+        nullable=False,
+    )
+    estimated_grams_co2e: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4),
+        nullable=False,
+    )
+    factor_source: Mapped[str] = mapped_column(String(length=120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

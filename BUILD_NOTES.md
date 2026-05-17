@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T007 is complete. The project now includes a mockable carbon intensity provider client, carbon intensity query/sample schemas, a Redis-backed cache abstraction/implementation, and a cache-first carbon intensity service. Provider HTTP calls are isolated in `clients/`, Redis access is isolated in `cache/`, and tests use fakes plus `httpx.MockTransport` instead of a live third-party API.
+T008 is complete. The project now includes usage sample ingestion through `POST /workspaces/{workspace_id}/usage-samples`, request/response schemas, a usage ingestion service, a usage sample repository, and Alembic/model fields for persisted calculated estimates. The service validates workspace existence through a repository protocol, calculates emissions through the carbon calculation protocol, and persists raw plus calculated fields through the repository boundary.
 
 ## Last completed ticket
 
-T007 — Carbon intensity client with Redis cache.
+T008 — Usage sample ingestion.
 
 ## Current blockers
 
@@ -70,18 +70,27 @@ None.
 - T007: `uv run ruff format --check .` — passed.
 - T007: `uv run mypy src tests` — passed.
 - T007: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 48 tests and 92% total coverage.
+- T008: `uv run ruff format .` — formatted the new usage sample schema/API test files before final checks.
+- T008: `uv run ruff check .` — passed.
+- T008: `uv run ruff format --check .` — passed.
+- T008: `uv run mypy src tests` — passed.
+- T008: `uv run pytest tests/test_usage_ingestion_service.py tests/test_usage_samples_api.py tests/test_models.py -q` — passed with 8 tests.
+- T008: `uv run python scripts/check-layering.py` — passed.
+- T008: `uv run python scripts/check-no-private-terms.py` — passed.
+- T008: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 56 tests and 93% total coverage.
 
 ## Limitations
 
-- Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
+- Workspace and usage ingestion endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
 - Carbon calculation factors and conversions are public-safe demo values only, not authoritative energy or emissions measurements.
-- Carbon calculation and carbon intensity lookup services are not exposed through HTTP endpoints yet.
+- Usage ingestion requires caller-supplied carbon intensity values; it does not call the carbon intensity provider or Redis cache.
+- Direct carbon intensity lookup is not exposed through HTTP yet.
 - The default carbon intensity provider URL is a public-safe `.invalid` placeholder; tests use fakes and do not depend on a live provider.
-- Redis cache code exists, but no current API endpoint calls it until usage ingestion/reporting flows are added.
+- Redis cache code exists, but no current API endpoint calls it yet.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No usage sample ingestion, authentication, metrics endpoint, or reporting endpoints are included.
+- No authentication, metrics endpoint, or reporting endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T008 — Usage sample ingestion.
+Recommended next ticket: T009 — Reporting endpoints.

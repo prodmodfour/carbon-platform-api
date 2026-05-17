@@ -5,10 +5,22 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from carbon_platform_api.dependencies import get_workspace_service
+from carbon_platform_api.dependencies import (
+    get_usage_ingestion_service,
+    get_workspace_service,
+)
+from carbon_platform_api.schemas.usage_samples import (
+    UsageSampleIngestionRequest,
+    UsageSampleResponse,
+)
 from carbon_platform_api.schemas.workspaces import (
     WorkspaceCreateRequest,
     WorkspaceResponse,
+)
+from carbon_platform_api.services.usage_ingestion import (
+    InvalidUsageSampleError,
+    UsageIngestionService,
+    UsageSampleWorkspaceNotFoundError,
 )
 from carbon_platform_api.services.workspaces import (
     DuplicateWorkspaceNameError,
@@ -64,3 +76,36 @@ async def get_workspace(
         ) from exc
 
     return WorkspaceResponse.model_validate(workspace)
+
+
+@router.post(
+    "/{workspace_id}/usage-samples",
+    response_model=UsageSampleResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def ingest_usage_sample(
+    workspace_id: UUID,
+    request: UsageSampleIngestionRequest,
+    usage_ingestion_service: Annotated[
+        UsageIngestionService,
+        Depends(get_usage_ingestion_service),
+    ],
+) -> UsageSampleResponse:
+    """Ingest one compute usage sample for a workspace."""
+    try:
+        usage_sample = await usage_ingestion_service.ingest_usage_sample(
+            workspace_id=workspace_id,
+            request=request,
+        )
+    except UsageSampleWorkspaceNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found.",
+        ) from exc
+    except InvalidUsageSampleError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return UsageSampleResponse.model_validate(usage_sample)

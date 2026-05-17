@@ -6,7 +6,9 @@ from typing import Annotated, cast
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from carbon_platform_api.repositories.usage_samples import UsageSampleRepository
 from carbon_platform_api.repositories.workspaces import WorkspaceRepository
+from carbon_platform_api.services.usage_ingestion import UsageIngestionService
 from carbon_platform_api.services.workspaces import WorkspaceService
 
 
@@ -31,3 +33,13 @@ async def get_workspace_service(
 ) -> WorkspaceService:
     """Build the workspace service for a request."""
     return WorkspaceService(WorkspaceRepository(session))
+
+
+async def get_usage_ingestion_service(
+    session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> UsageIngestionService:
+    """Build the usage ingestion service for a request."""
+    return UsageIngestionService(
+        workspace_repository=WorkspaceRepository(session),
+        usage_sample_repository=UsageSampleRepository(session),
+    )

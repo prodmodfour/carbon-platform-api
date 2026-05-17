@@ -66,7 +66,7 @@ Start PostgreSQL if it is not already running:
 docker compose up --detach postgres
 ```
 
-Apply the current Alembic schema before using workspace endpoints:
+Apply the current Alembic schema before using workspace or usage ingestion endpoints:
 
 ```sh
 CARBON_API_DATABASE_URL=postgresql+asyncpg://carbon_platform_api:local_dev_password@localhost:5432/carbon_platform_api uv run alembic upgrade head
@@ -102,6 +102,27 @@ curl -i http://127.0.0.1:8000/workspaces/00000000-0000-0000-0000-000000000000
 ```
 
 Duplicate workspace names should return `409 Conflict`. Unknown workspace IDs should return `404 Not Found`.
+
+## Usage ingestion smoke check
+
+After creating a workspace, ingest one public-safe sample by replacing the UUID with the created workspace ID:
+
+```sh
+curl -i \
+  -X POST http://127.0.0.1:8000/workspaces/00000000-0000-0000-0000-000000000000/usage-samples \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "provider":"sample-cloud",
+    "region":"sample-region-1",
+    "resource_type":"vcpu",
+    "usage_amount":"10",
+    "usage_unit":"vcpu_hour",
+    "measured_at":"2026-01-01T12:00:00Z",
+    "carbon_intensity_grams_co2e_per_kwh":"400"
+  }'
+```
+
+The response should include the persisted raw fields plus calculated `energy_kwh`, `estimated_grams_co2e`, and `factor_source`. Unknown workspace IDs should return `404 Not Found`; incompatible resource/unit pairs should return `422 Unprocessable Content`.
 
 ## Docker teardown
 
@@ -146,8 +167,9 @@ When an upstream branch exists, the loop runs `git pull --ff-only` before each c
 
 ## Current operational limitations
 
-- Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run migrations at startup.
-- Redis is available only as local infrastructure; no Redis/cache application code exists yet.
+- Workspace and usage ingestion endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run migrations at startup.
+- Carbon calculation factors and conversions are public-safe demo values only, not authoritative measurements.
+- Usage ingestion uses caller-supplied carbon intensity values and does not call the carbon intensity provider or Redis cache.
 - No authentication or authorization.
-- No carbon usage ingestion or reporting endpoints.
+- No reporting endpoints.
 - No metrics endpoint or tracing integration.
