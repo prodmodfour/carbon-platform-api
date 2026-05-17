@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T012 is complete. A public-safe GitHub Actions CI workflow now runs on pull requests and pushes to the default `main` branch. It provisions PostgreSQL for integration tests, caches `uv` dependencies, and runs the same substantive checks as the local quality gate. README now documents the CI contract, and workflow configuration tests validate the CI syntax and expected checks.
+T013 is complete. Public portfolio documentation is refreshed across README, architecture, and runbook docs; a public-safe sample API walkthrough now covers local setup, workspace creation, usage ingestion, reports, and metrics; and ADRs now document major design choices made since the initial skeleton. Documentation consistency tests validate links, public-safety language, endpoint coverage, walkthrough coverage, and accepted ADRs.
 
 ## Last completed ticket
 
-T012 — GitHub Actions CI.
+T013 — Documentation polish.
 
 ## Current blockers
 
@@ -103,6 +103,12 @@ None.
 - T012: `uv run ruff format --check .` — passed.
 - T012: `uv run mypy src tests` — passed.
 - T012: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 81 tests and 95% total coverage.
+- T013: `uv run pytest tests/test_documentation.py -q` — passed with 5 documentation consistency tests.
+- T013: `uv run ruff check .` — passed.
+- T013: `uv run ruff format --check .` — passed.
+- T013: `uv run mypy src tests` — passed.
+- T013: `uv run python scripts/check-no-private-terms.py` — passed.
+- T013: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 86 tests and 95% total coverage.
 
 ## Limitations
 
@@ -122,4 +128,4 @@ None.
 
 ## Notes for next cycle
 
-Recommended next ticket: T013 — Documentation polish.
+Recommended next ticket: T014 — API key auth.

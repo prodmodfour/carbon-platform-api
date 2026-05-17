@@ -468,7 +468,7 @@ Acceptance criteria:
 
 ## T013 — Documentation polish
 
-Status: TODO
+Status: DONE
 
 Goal:
 Improve public portfolio documentation after the core API features exist.
