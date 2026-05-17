@@ -2,7 +2,7 @@
 
 carbon-platform-api is an independent public portfolio project demonstrating backend and platform engineering with Python and FastAPI.
 
-The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, initial PostgreSQL models/migrations, and workspace create/list/fetch endpoints.
+The long-term project goal is a production-style API for tracking compute-related carbon usage. The current scope includes a Python 3.12 FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID correlation, a Docker Compose local stack for the API, PostgreSQL, and Redis, initial PostgreSQL models/migrations, workspace create/list/fetch endpoints, and a deterministic carbon calculation service for future usage ingestion.
 
 ## Public-safety constraints
 
@@ -16,7 +16,7 @@ This repository uses only public-safe sample code and documentation. Do not add 
 - `GET /workspaces/{workspace_id}` fetches one workspace by UUID.
 - If a request supplies `X-Request-ID`, the same value is propagated to the response and request completion log. Otherwise, the API generates a request ID.
 
-Workspace endpoints use SQLAlchemy through a service/repository boundary. Apply Alembic migrations before using them against a real database. Redis remains available in the local Docker stack only; the application does not yet contain Redis application code, carbon calculation logic, authentication, metrics, reporting, usage ingestion, or external API clients.
+Workspace endpoints use SQLAlchemy through a service/repository boundary. Apply Alembic migrations before using them against a real database. The carbon calculation service uses documented public-safe demo factors and is not exposed through an HTTP endpoint yet. Redis remains available in the local Docker stack only; the application does not yet contain Redis application code, authentication, metrics, reporting, usage ingestion, or external API clients.
 
 ## Requirements
 

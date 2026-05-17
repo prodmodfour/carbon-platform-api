@@ -267,7 +267,7 @@ Acceptance criteria:
 
 ## T006 — Carbon calculation service
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add a deterministic carbon calculation service without adding new HTTP endpoints.

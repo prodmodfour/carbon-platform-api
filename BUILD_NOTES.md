@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T005 is complete. The API now exposes workspace create/list/fetch endpoints through FastAPI routes, request/response schemas, a workspace service, FastAPI dependency wiring, and the existing SQLAlchemy-backed workspace repository. Routes preserve the service/repository boundary and translate duplicate names to `409 Conflict` and missing workspaces to `404 Not Found`.
+T006 is complete. The project now includes deterministic carbon calculation schemas/enums and a calculation service with injectable energy factor and usage-unit conversion protocols. The default implementation uses documented public-safe demo factors for `vcpu`, `memory`, `storage`, and `network`, performs Decimal-based unit conversion and rounding, and remains unexposed by HTTP endpoints.
 
 ## Last completed ticket
 
-T005 — Workspace API.
+T006 — Carbon calculation service.
 
 ## Current blockers
 
@@ -60,15 +60,22 @@ None.
 - T005: `uv run mypy src tests` — passed.
 - T005: `uv run pytest tests/test_workspace_api.py -q` — passed with 3 endpoint tests.
 - T005: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 23 tests and 95% total coverage.
+- T006: `uv run pytest tests/test_carbon_calculations.py -q` — passed with 16 unit tests.
+- T006: `uv run ruff check .` — passed.
+- T006: `uv run ruff format --check .` — passed.
+- T006: `uv run mypy src tests` — passed.
+- T006: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, `alembic upgrade head`, and pytest coverage. Pytest passed with 39 tests and 95% total coverage.
 
 ## Limitations
 
 - Workspace endpoints require the PostgreSQL schema to be migrated before use; the API does not auto-run Alembic migrations at startup.
+- Carbon calculation factors and conversions are public-safe demo values only, not authoritative energy or emissions measurements.
+- The carbon calculation service is not exposed through HTTP and does not fetch external carbon intensity data.
 - FastAPI docs/OpenAPI routes remain disabled by default; they are exposed only when `CARBON_API_DOCS_ENABLED=true`.
 - Redis is available as local Docker infrastructure only; the application does not connect to it yet.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
-- No carbon calculations, usage sample ingestion, external API clients, authentication, metrics endpoint, or reporting endpoints are included.
+- No usage sample ingestion, external API clients, authentication, metrics endpoint, or reporting endpoints are included.
 
 ## Notes for next cycle
 
-Recommended next ticket: T006 — Carbon calculation service.
+Recommended next ticket: T007 — Carbon intensity client with Redis cache.

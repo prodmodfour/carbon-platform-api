@@ -2,9 +2,9 @@
 
 ## Current scope
 
-T005 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, initial PostgreSQL persistence, and workspace create/list/fetch endpoints. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository behind a workspace service.
+T006 provides the FastAPI application, a liveness endpoint, environment-backed configuration, structured JSON request logging, request ID middleware, Docker support for local development, initial PostgreSQL persistence, workspace create/list/fetch endpoints, and a deterministic carbon calculation service. Persistence includes SQLAlchemy models, Alembic migrations, async database/session helpers, and a workspace repository behind a workspace service.
 
-Redis is still infrastructure only. The application intentionally does not include Redis application code, carbon calculations, usage ingestion, reporting, authentication, metrics, or external API clients yet.
+Redis is still infrastructure only. The application intentionally does not include Redis application code, usage ingestion, reporting, authentication, metrics, or external API clients yet. The carbon calculation service is available to application services but is not exposed through an HTTP endpoint yet.
 
 ## Package layout
 
@@ -21,8 +21,10 @@ src/carbon_platform_api/
   repositories/workspaces.py        Workspace repository using an async SQLAlchemy session
   routes/health.py                  HTTP route for GET /healthz
   routes/workspaces.py              HTTP routes for workspace create/list/fetch
+  schemas/carbon_calculations.py    Calculation input/output schemas and enums
   schemas/health.py                 Response schema for the health endpoint
   schemas/workspaces.py             Request/response schemas for workspace endpoints
+  services/carbon_calculations.py   Carbon calculation service and provider protocols
   services/workspaces.py            Workspace business service and repository protocol
 alembic/
   env.py                            Async Alembic migration environment
@@ -91,6 +93,33 @@ The workspace repository supports creating, listing, fetching by ID, and fetchin
 
 The workspace service depends on a small repository protocol. It normalizes workspace names, validates duplicate names before create, and translates missing workspaces into service-level errors. Route handlers perform HTTP concerns only: request/response schema handling and translating service errors to `409 Conflict` or `404 Not Found`.
 
+## Carbon calculation flow
+
+`carbon_platform_api.schemas.carbon_calculations` defines the calculation input and output shapes plus supported demo resource and usage-unit enums. `carbon_platform_api.services.carbon_calculations.CarbonCalculationService` calculates emissions using this flow:
+
+```text
+CarbonCalculationInput
+  -> validate positive usage, non-negative carbon intensity, and non-blank region
+  -> load a resource/region energy factor from EnergyFactorProviderProtocol
+  -> convert usage to the factor's normalized unit through UsageUnitConverterProtocol
+  -> energy_kwh = normalized_usage_amount * kwh_per_normalized_unit
+  -> estimated_grams_co2e = energy_kwh * carbon_intensity_grams_co2e_per_kwh
+  -> round normalized usage and kWh to 6 decimal places, grams CO2e to 4 decimal places
+```
+
+The default providers use deliberately simple public-safe demo factors:
+
+| Resource type | Normalized unit | Demo kWh per normalized unit |
+| --- | --- | ---: |
+| `vcpu` | `vcpu_hour` | `0.0500` |
+| `memory` | `gb_hour` | `0.0005` |
+| `storage` | `gb_month` | `0.0001` |
+| `network` | `gb` | `0.0020` |
+
+Supported demo unit conversions include `vcpu_minute` to `vcpu_hour`, `gb_minute` to `gb_hour`, `tb_month` to `gb_month`, and `mb`/`tb` to `gb`. These factors and conversions are sample values for deterministic portfolio behaviour only; they are not authoritative energy or emissions measurements.
+
+Extension points are intentionally small. Future factor sources can implement `EnergyFactorProviderProtocol`, which receives resource type and region, and future unit conversion strategies can implement `UsageUnitConverterProtocol`, without changing route handlers, repositories, or the core calculation formula. The default demo factors are region-independent. The service accepts carbon intensity as an input value in grams CO2e/kWh and does not fetch external carbon intensity data or use Redis.
+
 ## Local infrastructure
 
 ```text
@@ -129,5 +158,7 @@ The full quality gate includes two repository safety checks:
 - `GET /workspaces/{workspace_id}` returns one workspace by UUID.
 
 Workspace names must be non-blank, at most 120 characters, and unique. Duplicate names return `409 Conflict`; missing workspace IDs return `404 Not Found`.
+
+No HTTP endpoint exposes carbon calculation yet; the service is available for future usage ingestion work.
 
 FastAPI documentation and OpenAPI routes are disabled by default. They are exposed only when `CARBON_API_DOCS_ENABLED=true`.
