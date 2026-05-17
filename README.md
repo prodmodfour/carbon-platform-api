@@ -256,6 +256,21 @@ When `docker-compose.yml` exists, the quality gate also validates the Compose fi
 
 The quality gate also runs automation guardrails: shell syntax checks for project scripts, a public-safety term scan (`CARBON_API_PRIVATE_TERMS` may provide a comma-separated custom denylist), and a route-layering check that prevents route modules from importing persistence layers directly.
 
+## CI contract
+
+GitHub Actions runs the `CI` workflow on pull requests and pushes to the default `main` branch. The workflow uses public-safe local PostgreSQL service credentials for integration tests, caches `uv` dependencies from `uv.lock`, and runs the same substantive checks as the local quality gate:
+
+- shell syntax checks for project scripts
+- public-safety and route-layering guardrails
+- `uv run ruff check .`
+- `uv run ruff format --check .`
+- `uv run mypy src tests`
+- `docker compose config`
+- `uv run alembic upgrade head`
+- `uv run pytest --cov=src --cov-report=term-missing`
+
+The CI workflow does not require repository secrets, upload coverage, or run deployment jobs.
+
 ## Automation build loop
 
 `scripts/build-loop.sh` runs bounded pi build cycles. It requires a clean working tree, pulls with `git pull --ff-only` when the branch has an upstream, refuses to start while ahead of upstream unless `--allow-ahead` or `PI_BUILD_ALLOW_AHEAD=1` is set, and stops if the upstream changes during a cycle.

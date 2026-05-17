@@ -440,7 +440,7 @@ Acceptance criteria:
 
 ## T012 — GitHub Actions CI
 
-Status: TODO
+Status: DONE
 
 Goal:
 Add public-safe CI for linting, type checking, tests, and Docker validation.

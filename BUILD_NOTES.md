@@ -4,11 +4,11 @@ AUTOMATION_STATUS: IN_PROGRESS
 
 ## Current summary
 
-T011 is complete. The local Docker Compose stack now includes Prometheus and Grafana for metrics exploration. Prometheus scrapes the API's `/metrics` endpoint over the Compose network, and Grafana provisions a local Prometheus datasource plus a public-safe `Carbon Platform API Local Overview` dashboard. Documentation now includes startup, validation, login, and teardown commands with safe local placeholder credentials.
+T012 is complete. A public-safe GitHub Actions CI workflow now runs on pull requests and pushes to the default `main` branch. It provisions PostgreSQL for integration tests, caches `uv` dependencies, and runs the same substantive checks as the local quality gate. README now documents the CI contract, and workflow configuration tests validate the CI syntax and expected checks.
 
 ## Last completed ticket
 
-T011 — Prometheus and Grafana local stack.
+T012 — GitHub Actions CI.
 
 ## Current blockers
 
@@ -98,6 +98,11 @@ None.
 - T011: `uv run python scripts/check-no-private-terms.py` — passed.
 - T011: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 77 tests and 95% total coverage.
 - T011: Docker observability smoke test — passed using an isolated Compose project and alternate host ports; API, Prometheus, and Grafana health checks passed, Prometheus returned `up{job="carbon-platform-api"}=1`, Grafana returned the provisioned dashboard from its API, and the stack was torn down with volumes removed.
+- T012: `uv run pytest tests/test_ci_configuration.py -q` — passed with 4 CI workflow configuration tests.
+- T012: `uv run ruff check .` — passed.
+- T012: `uv run ruff format --check .` — passed.
+- T012: `uv run mypy src tests` — passed.
+- T012: `scripts/quality-gate.sh` — passed with shell syntax checks, public-safety scanning, route-layering checks, Ruff, Ruff format check, mypy, `docker compose config`, isolated PostgreSQL startup, Alembic upgrades through `20260517_0002`, and pytest coverage. Pytest passed with 81 tests and 95% total coverage.
 
 ## Limitations
 
@@ -112,8 +117,9 @@ None.
 - Automation guardrails now exist, but they are intentionally conservative checks and do not replace human review for public-safety or architecture issues.
 - Prometheus and Grafana are included only as local Docker Compose services for metrics exploration; no hosted monitoring integration, alerting, or tracing is configured.
 - Grafana uses safe local placeholder credentials by default and is not production-hardened.
+- GitHub Actions CI validates quality gates only; it does not upload coverage, deploy artifacts, or require repository secrets.
 - Authentication is not included yet.
 
 ## Notes for next cycle
 
-Recommended next ticket: T012 — GitHub Actions CI.
+Recommended next ticket: T013 — Documentation polish.

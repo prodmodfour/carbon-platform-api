@@ -1,0 +1,74 @@
+name: CI
+
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: carbon_platform_api
+          POSTGRES_USER: carbon_platform_api
+          POSTGRES_PASSWORD: local_dev_password
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U carbon_platform_api -d carbon_platform_api"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CARBON_API_DATABASE_URL: postgresql+asyncpg://carbon_platform_api:local_dev_password@127.0.0.1:5432/carbon_platform_api
+      CARBON_API_TEST_DATABASE_ADMIN_URL: postgresql+asyncpg://carbon_platform_api:local_dev_password@127.0.0.1:5432/postgres
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Run automation guardrails
+        run: |
+          bash -n scripts/build-loop.sh
+          bash -n scripts/quality-gate.sh
+          uv run python scripts/check-no-private-terms.py
+          uv run python scripts/check-layering.py
+
+      - name: Run Ruff lint
+        run: uv run ruff check .
+
+      - name: Run Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Run mypy
+        run: uv run mypy src tests
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config >/dev/null
+
+      - name: Apply database migrations
+        run: uv run alembic upgrade head
+
+      - name: Run pytest
+        run: uv run pytest --cov=src --cov-report=term-missing
